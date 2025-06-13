@@ -12,7 +12,7 @@ $$ language 'plpgsql';
 -- Create the user_profiles table
 CREATE TABLE user_profiles (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Corrected type to match users.id (assuming users.id is UUID)
     location VARCHAR(255) NULL,
     professional_title VARCHAR(255) NULL, -- Primarily for individuals
     years_of_experience VARCHAR(50) NULL, -- Primarily for individuals
