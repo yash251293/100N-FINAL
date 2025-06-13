@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { CheckIcon, UserIcon, HeartIcon, SettingsIcon, FileTextIcon, SparklesIcon, BuildingIcon } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from "@/context/AuthContext";
 
 const individualSteps = [
   {
@@ -84,8 +85,21 @@ const companySteps = [
 
 export function OnboardingStepper() {
   const pathname = usePathname()
-  // In a real app, this would come from user state/context
-  const [userType] = useState<'company' | 'individual'>('company')
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const userType = user?.user_type;
+
+  if (isAuthLoading) {
+    return <div>Loading authentication details...</div>; // Or a skeleton loader
+  }
+
+  if (!userType) {
+    // This case should ideally not happen if onboarding is protected and user is always loaded.
+    // Redirecting or showing an error might be appropriate.
+    // For now, can show a message or return null to prevent errors.
+    console.warn("OnboardingStepper: userType is undefined. User may not be properly loaded or authenticated.");
+    return <div>Error: User type not determined. Please ensure you are logged in.</div>; // Or redirect
+  }
+
   const stepsData = userType === 'company' ? companySteps : individualSteps
   const currentStepIndex = stepsData.findIndex((step) => pathname.startsWith(step.href))
 
