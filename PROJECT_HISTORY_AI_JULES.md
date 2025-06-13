@@ -83,21 +83,6 @@ The primary goal was to consolidate the two projects into `Final UI`, making it 
     *   **Action**: Scanned `Final UI` for any code import dependencies on the `Login Signup Landing` folder.
     *   **Outcome**: No direct code import dependencies were found. `Final UI` uses `@/` aliases that resolve internally.
 
-## Current Known Issues (as of this document's creation)
-
-1.  **Missing Image Assets**: Images originally in `Login Signup Landing/public/` (used on the landing page, login, signup, and potentially onboarding pages) were **not successfully copied** to `Final UI/public/` due to tool limitations with binary file operations (`cp` failing in sandbox, `read_files` being unsuitable for raw binary). Pages referencing these images will be visually incomplete (broken image links).
-2.  **`Login Signup Landing` Directory Remnants**: The entire `Login Signup Landing` directory **could not be automatically deleted** due to tool limitations. It remains in the repository but should be considered deprecated and its contents (especially `components/ui`, `hooks`, `lib`) are superseded by those in `Final UI`.
-3.  **Hardcoded `userType` in OnboardingStepper**: The `userType` state in `Final UI/components/onboarding-stepper.tsx` is still locally managed with `useState` and a default value. This will need to be driven by actual user data once backend authentication is in place.
-4.  **Form Submissions**: All forms (login, signup, onboarding) are currently UI-only and do not submit data to any backend.
-
-## Next Steps (Planned)
-
-The project is now intended to move into **Part 2: Backend Development**, which involves:
-*   Setting up a new Node.js backend project (proposed as a `backend` directory in the repository root).
-*   Using PostgreSQL as the database.
-*   Implementing JWT-based authentication (registration, login).
-*   Connecting the `Final UI` frontend to this backend.
-
 ## Phase 4: Backend Development (Node.js/Express/PostgreSQL)
 
 This phase focused on setting up the foundational elements of the backend API.
@@ -109,7 +94,7 @@ This phase focused on setting up the foundational elements of the backend API.
     *   Basic server setup in `backend/index.js` with Express, CORS, and JSON parsing middleware.
     *   A `.gitignore` file was added for Node.js projects.
     *   Scripts for `start`, `dev`, and `test` were added to `package.json`.
-    *   **Known Issue**: `npm install` commands failed in the sandbox. The `node_modules` directory is missing, and dependencies are not actually installed. The backend is not runnable in its current state.
+    *   **Known Issue**: `npm install` commands failed in the sandbox. The `node_modules` directory is missing, and dependencies are not actually installed. The backend is not runnable in its current state. (This was later resolved by the AI in Phase 6).
 
 2.  **Environment Configuration**:
     *   `.env` and `.env.example` files were created in the `backend` directory.
@@ -123,7 +108,7 @@ This phase focused on setting up the foundational elements of the backend API.
         *   Optional fields: `full_name`, `company_name`, `industry`, `company_size`.
         *   Timestamps: `created_at`, `updated_at` (with an auto-update trigger).
         *   An index on `LOWER(email)` for case-insensitive unique email checks.
-    *   **Known Issue**: The `pg` package is not installed, so the DB connection module is not functional.
+    *   **Known Issue**: The `pg` package is not installed, so the DB connection module is not functional. (This was later resolved by the AI in Phase 6).
 
 4.  **Authentication Routes (`backend/routes/authRoutes.js`)**:
     *   **POST `/api/auth/register`**: Implemented user registration logic, including:
@@ -140,7 +125,7 @@ This phase focused on setting up the foundational elements of the backend API.
         *   JWT generation upon successful login, using `JWT_SECRET` and `JWT_EXPIRES_IN` from `.env`.
         *   Returns token and basic user data.
     *   These routes were mounted in `backend/index.js` under the `/api/auth` prefix.
-    *   **Known Issue**: Dependencies (`express`, `bcryptjs`, `jsonwebtoken`, `pg`) are not installed.
+    *   **Known Issue**: Dependencies (`express`, `bcryptjs`, `jsonwebtoken`, `pg`) are not installed. (This was later resolved by the AI in Phase 6).
 
 5.  **User Profile Route (`backend/routes/userRoutes.js`)**:
     *   **GET `/api/users/me`**: Implemented logic to fetch the current user's profile.
@@ -148,7 +133,7 @@ This phase focused on setting up the foundational elements of the backend API.
         *   Retrieves user ID from the JWT payload (`req.user.userId`).
         *   Fetches user details from the database (excluding password hash).
     *   These routes were mounted in `backend/index.js` under the `/api/users` prefix.
-    *   **Known Issue**: Dependencies are not installed.
+    *   **Known Issue**: Dependencies are not installed. (This was later resolved by the AI in Phase 6).
 
 6.  **Authentication Middleware (`backend/middleware/authMiddleware.js`)**:
     *   Created JWT verification middleware.
@@ -156,7 +141,7 @@ This phase focused on setting up the foundational elements of the backend API.
     *   Verifies token using `jwt.verify` and `process.env.JWT_SECRET`.
     *   Attaches decoded payload to `req.user`.
     *   Handles errors like missing/invalid token, `TokenExpiredError`, `JsonWebTokenError`.
-    *   **Known Issue**: `jsonwebtoken` is not installed.
+    *   **Known Issue**: `jsonwebtoken` is not installed. (This was later resolved by the AI in Phase 6).
 
 7.  **Error Handling in `backend/index.js`**:
     *   Enhanced the global error handler to return JSON responses with `status`, `statusCode`, and `message`.
@@ -213,42 +198,78 @@ This phase involved setting up the frontend to communicate with the (not-yet-run
         *   Uses `sonner` (`toast`) for notifications.
     *   **`Final UI/components/auth/ProtectedRoute.tsx`**: Implemented component to redirect unauthenticated users to `/auth/login`, showing loading/redirecting messages.
 
+## Phase 6: Getting the Application Running and Fixing Onboarding Stepper
+
+This phase focused on resolving dependency issues, guiding the user through manual setup, and fixing a key UI component.
+
+1.  **Backend Dependencies Installation**:
+    *   Successfully ran `npm install` in the `backend/` directory.
+    *   `npm audit fix` was attempted, but a `semver` high-severity vulnerability within `nodemon`'s dependencies remained. This was noted as a non-blocking issue for development purposes.
+
+2.  **Frontend Dependencies Installation Attempt**:
+    *   **Outcome**: FAILED. Attempts to run `pnpm install` and `npm install` (with various strategies like clearing cache, removing lockfiles, using `--legacy-peer-deps`) in the `Final UI/` directory consistently failed due to a persistent sandbox error: "Failed to compute affected file count and total size after command execution."
+    *   **Guidance**: The user was advised that this step would need to be performed manually.
+
+3.  **Image Asset Migration Guidance**:
+    *   Due to tool limitations with binary files (and previous failures with `cp`), the AI advised the user to manually copy image assets from `Login Signup Landing/public/` to `Final UI/public/`.
+
+4.  **Database and Environment Setup Guidance**:
+    *   The AI provided detailed instructions for the user to manually:
+        *   Set up the PostgreSQL database (create DB, user, run migrations).
+        *   Configure environment variables by creating and populating `.env` in `backend/` and `.env.local` in `Final UI/`.
+
+5.  **User Confirmation of Running Application**:
+    *   The user confirmed that after performing the manual setup steps (especially creating the `.env` files and presumably installing frontend dependencies and setting up the DB), both the backend and frontend applications were running successfully.
+
+6.  **`Login Signup Landing` Directory Deletion Attempt**:
+    *   **Outcome**: FAILED. An attempt to delete the `Login Signup Landing/` directory using `rm -rf` also failed with the same persistent sandbox error ("Failed to compute affected file count...").
+    *   **Guidance**: The user was advised this would also need manual deletion.
+
+7.  **Onboarding Stepper Fix (`Final UI/components/onboarding-stepper.tsx`)**:
+    *   Successfully modified the component to derive `userType` from `AuthContext` (via `useAuth` hook) instead of using a hardcoded `useState` value.
+    *   Added loading state display while `isAuthLoading` is true.
+    *   Added a fallback UI (error message) if `userType` is not determined after loading, to prevent runtime errors.
+
 ## Current Project Status
 
-*   **Frontend**: `Final UI` now contains the merged landing, login, signup, and onboarding UIs. It has a basic API service layer, authentication context, protected route component, and uses toast notifications. Forms are set up for API interaction.
-*   **Backend**: A Node.js/Express backend structure exists with placeholders or initial implementations for user registration, login, and fetching user profiles. Database schema for users is defined.
-*   **Connectivity**: Frontend is wired to make API calls to the backend. Backend routes are defined.
-*   **Major Blocker**: The backend is **not runnable** because `npm install` failed in the sandbox environment, so no Node.js modules (Express, pg, bcryptjs, jsonwebtoken, etc.) are actually installed. Similarly, frontend NPM packages like `sonner`, `react-hook-form`, `zod` would need installation if not already part of the base `Final UI` project.
-*   **Other Known Issues**:
-    *   Image assets from `Login Signup Landing` were not migrated.
-    *   The `Login Signup Landing` directory could not be deleted.
-    *   `userType` in `OnboardingStepper` is still hardcoded.
+*   **Frontend**: `Final UI` contains the merged UIs. It has an API service layer, authentication context, protected routes, and toast notifications. Login and Signup forms interact with the backend. The `OnboardingStepper` now correctly uses the authenticated user's type.
+*   **Backend**: The Node.js/Express backend is **runnable** as dependencies were successfully installed by the AI. It provides endpoints for user registration, login, and fetching user profiles. Database schema for users is defined.
+*   **Connectivity**: Frontend and backend are connected and, as per user confirmation, are functional when manually set up correctly.
+*   **Key Changes in this Phase**:
+    *   Backend dependencies are now installed.
+    *   `OnboardingStepper` hardcoding is fixed.
+*   **Persistent Sandbox/Tool Issues**:
+    *   Frontend dependencies (`Final UI/`) could not be installed by the AI.
+    *   Image assets from `Login Signup Landing` could not be migrated by the AI.
+    *   The `Login Signup Landing` directory could not be deleted by the AI.
 
 ## Next Steps for User (Manual Intervention Required)
 
-1.  **Backend Dependencies**: Navigate to the `backend` directory and run `npm install` to install all required packages listed in `backend/package.json`.
-2.  **Frontend Dependencies**: Navigate to the `Final UI` directory and run `npm install` (or `yarn`/`pnpm install`) to ensure all frontend packages like `sonner`, `react-hook-form`, `zod`, `date-fns` (ensure version `^3.6.0` is used as per prior update) etc., are installed.
-3.  **Database Setup**:
+1.  **Frontend Dependencies (If Not Already Done)**: If not yet completed, navigate to the `Final UI` directory and run `pnpm install` (or `npm install`/`yarn install`) to install all frontend packages.
+2.  **Database Setup (If Not Already Done)**:
     *   Ensure PostgreSQL is installed and running.
-    *   Create the database `flexbone_db` and user `flexbone_user` with password `flexbone_password` (or update `.env` with actual credentials).
-    *   Run the migration script `backend/db/migrations/001_create_users_table.sql` against the database to create the `users` table. (A migration tool like `node-pg-migrate` would typically be added to automate this).
-4.  **Environment Files**:
-    *   In `Final UI`, copy `.env.local.example` to `.env.local` and ensure `NEXT_PUBLIC_API_URL` is correct if the backend runs on a different port than 3001.
-    *   In `backend`, ensure `.env` has the correct `JWT_SECRET`, `DB_` variables, etc.
-5.  **Run Both Applications**:
+    *   Create the database `flexbone_db` and user `flexbone_user` with password `flexbone_password` (or update `.env` in `backend/` with actual credentials if different).
+    *   Run the migration script `backend/db/migrations/001_create_users_table.sql` against the database to create the `users` table.
+3.  **Environment Files (If Not Already Done)**:
+    *   In `Final UI`, copy `.env.local.example` to `.env.local` and ensure `NEXT_PUBLIC_API_URL=http://localhost:3001/api` (or adjust if backend runs on a different port).
+    *   In `backend`, ensure `.env` has the correct `JWT_SECRET`, `DB_` variables for your local PostgreSQL setup, etc.
+4.  **Image Assets (If Not Already Done)**: Manually copy the missing image assets from `Login Signup Landing/public/` to `Final UI/public/`. This is crucial for the landing page, login, and signup pages to render correctly.
+5.  **Delete `Login Signup Landing` Directory (Recommended)**: Manually delete the entire `Login Signup Landing/` directory from the project root, as it's now deprecated and its relevant parts have been migrated or superseded.
+6.  **Run Both Applications (If Not Already Done/Testing)**:
     *   Start the backend server (e.g., `npm run dev` in the `backend` directory).
     *   Start the frontend Next.js development server (e.g., `npm run dev` in the `Final UI` directory).
-6.  **Image Assets**: Manually copy the missing image assets from `Login Signup Landing/public/` to `Final UI/public/`.
+    *   Test registration, login, and the initial onboarding flow to ensure `userType` is correctly handled.
 
 ## Next Steps for AI (If Further Work is Requested)
 
-1.  **Implement Onboarding API Endpoints**: Create backend routes and logic for saving user onboarding data (profile, preferences, resume, culture fit).
-2.  **Connect Onboarding Frontend**: Update the frontend onboarding pages to submit data to these new backend endpoints.
+1.  **Implement Onboarding API Endpoints**: Create backend routes and database logic for saving all user onboarding data (profile details, preferences, resume path, culture fit answers).
+2.  **Connect Onboarding Frontend**: Update the frontend onboarding pages (profile, preferences, resume, culture) to submit data to these new backend endpoints using the API service.
 3.  **User Profile Management**:
-    *   Implement backend logic for updating user profiles.
+    *   Implement backend logic for creating/updating detailed user profiles (beyond initial registration fields). This would involve new tables (e.g., `user_profiles`, `experiences`, `education`).
     *   Create frontend UI for profile viewing and editing.
-4.  **Password Reset/Forgot Password**: Implement this functionality (backend routes, frontend pages).
-5.  **Refine Error Handling & UX**: Improve user feedback, loading states, and error display across the application.
-6.  **Type Safety**: Add specific TypeScript types for API payloads (request/response) and user/entity models, replacing `any` where used.
-7.  **Testing**: Add unit and integration tests.
-8.  **Cleanup**: Once backend is confirmed working by user, re-attempt deletion/cleanup of `Login Signup Landing` if tool capabilities improve or if specific file deletions are preferred.
+4.  **Password Reset/Forgot Password**: Implement this functionality (backend routes for token generation/validation, email sending (mocked/logged for now), frontend pages).
+5.  **Refine Error Handling & UX**: Improve user feedback, loading states, and error display across the application, especially for API interactions.
+6.  **Type Safety**: Add specific TypeScript types for API payloads (request/response) and database models, replacing `any` where used, particularly in `Final UI/lib/api/index.ts` and context.
+7.  **Testing**: Add unit tests for backend logic (especially API routes and services) and potentially UI component tests for critical parts of the frontend.
+8.  **Resolve `semver` Vulnerability (Optional/If Critical)**: Investigate workarounds or alternative packages if the `semver` vulnerability in `nodemon`'s dependency chain becomes a critical issue. This might involve overriding dependencies or waiting for upstream fixes.
+```
