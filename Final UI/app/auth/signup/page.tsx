@@ -14,8 +14,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { registerUser } from "@/lib/api";
+import { registerUser, loginUser } from "@/lib/api"; // Import loginUser
 import { toast } from "sonner"; // Import toast
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 // Zod schema (remains the same)
 const formSchema = z.object({
@@ -58,6 +59,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialUserType = searchParams.get("type") === 'company' ? 'company' : 'individual';
+  const { login } = useAuth(); // Get login from useAuth
 
   const { register, handleSubmit, watch, formState: { errors }, setValue, trigger } = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
@@ -93,15 +95,31 @@ export default function SignUpPage() {
     }
 
     try {
-      const response = await registerUser(apiData);
-      toast.success("Registration successful! Redirecting to login...");
+      const response = await registerUser(apiData); // Keep this
       console.log("Registration successful:", response);
-      setTimeout(() => {
+
+      // Attempt to auto-login
+      try {
+        const loginResponse = await loginUser({ email: apiData.email, password: apiData.password });
+        if (loginResponse && loginResponse.token && loginResponse.user) {
+          login(loginResponse.token, loginResponse.user); // Update AuthContext
+          toast.success("Registration successful! Redirecting to onboarding...");
+          router.push('/auth/onboarding/verify-email'); // Redirect to onboarding
+        } else {
+          // This case means login failed silently or returned unexpected data
+          toast.error("Registration successful, but auto-login failed. Please log in manually.");
+          router.push('/auth/login');
+        }
+      } catch (loginError: any) {
+        console.error("Auto-login after registration failed:", loginError);
+        toast.error("Registration successful, but auto-login failed. Please log in manually: " + (loginError.data?.message || loginError.message));
         router.push('/auth/login');
-      }, 2000);
+      }
     } catch (error: any) {
       console.error("Registration failed:", error);
-      toast.error(error.data?.message || error.message || "An unexpected error occurred.");
+      // Ensure the error structure is checked before accessing nested properties
+      const errorMessage = error.data?.message || error.message || "An unexpected error occurred during registration.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
