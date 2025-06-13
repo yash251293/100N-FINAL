@@ -60,7 +60,22 @@ const config: Config = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+			},
+        "brand-blue": "#1591ea",
+        "brand-blue-light": "#518ef8",
+        "brand-text-dark": "#303031",
+        "brand-text-medium": "#66645e",
+        "brand-text-light": "#807e76",
+        "brand-bg-beige": "#f3f0ea",
+        "brand-bg-light-gray": "#f9f9f9",
+        "brand-bg-input": "#f9f9f9",
+        "brand-bg-gray": "#ececec",
+        "brand-green": "#28b446",
+        "brand-yellow": "#fbbb00",
+        "brand-red": "#f14336",
+        "brand-border": "#bfbfbf",
+        "brand-black": "#000000",
+        "brand-token-blue": "#007aff"
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
