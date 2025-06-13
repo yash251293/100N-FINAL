@@ -75,3 +75,42 @@ export const getCurrentUser = async (token: string) => {
     },
   });
 };
+
+/**
+ * @typedef {object} UserProfileData
+ * @property {string} [full_name] - User's full name (for individuals).
+ * @property {string} [company_name] - Company's name (for companies).
+ * @property {string} [industry] - Company's industry (for companies).
+ * @property {string} [company_size] - Company's size (for companies).
+ * @property {string} [location] - User or company location.
+ * @property {string} [professional_title] - User's professional title (for individuals).
+ * @property {string} [years_of_experience] - User's years of experience (for individuals).
+ * @property {string} [job_function] - User's job function (for individuals).
+ * @property {string} [key_skills] - User's key skills, comma-separated (for individuals).
+ * @property {string} [education_level] - User's education level (for individuals).
+ * @property {string} [field_of_study] - User's field of study (for individuals).
+ * @property {string} [institution] - User's educational institution (for individuals).
+ * @property {string} [linkedin_url] - LinkedIn profile URL.
+ * @property {string} [website_url] - Personal or company website URL.
+ * @property {string} [bio] - User's summary or company's description.
+ * @property {string} [company_type] - Type of company (for companies).
+ * @property {string} [tech_stack] - Company's tech stack, comma-separated (for companies).
+ */
+
+/**
+ * Updates the authenticated user's profile.
+ * This can include fields for the 'users' table and 'user_profiles' table.
+ * @param {UserProfileData} profileData - The data to update.
+ * @param {string} token - The JWT token for authentication.
+ * @returns {Promise<any>} The response from the server (e.g., a success message).
+ *                        // TODO: Define a specific UpdateProfileResponse type
+ */
+export const updateUserProfile = async (profileData: any, token: string) => { // TODO: Replace 'any' with UserProfileData type
+  return request<any>('/users/profile', { // TODO: Define UpdateProfileResponse type
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(profileData),
+  });
+};
