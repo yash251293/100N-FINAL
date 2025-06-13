@@ -190,7 +190,7 @@ This phase involved setting up the frontend to communicate with the (not-yet-run
     *   **`Final UI/app/auth/signup/page.tsx`**:
         *   Integrated `react-hook-form` and `zod` for client-side validation.
         *   Calls `registerUser` API on submit.
-        *   Uses `sonner` (`toast`) for success/error notifications.
+        *   Uses `sonner` (`toast`) for success/error notifications. (This was later enhanced in Phase 6).
     *   **`Final UI/app/auth/login/page.tsx`**:
         *   Integrated `react-hook-form` and `zod`.
         *   Calls `loginUser` API on submit.
@@ -200,7 +200,7 @@ This phase involved setting up the frontend to communicate with the (not-yet-run
 
 ## Phase 6: Getting the Application Running and Fixing Onboarding Stepper
 
-This phase focused on resolving dependency issues, guiding the user through manual setup, and fixing a key UI component.
+This phase focused on resolving dependency issues, guiding the user through manual setup, and fixing key UI components and flows.
 
 1.  **Backend Dependencies Installation**:
     *   Successfully ran `npm install` in the `backend/` directory.
@@ -230,14 +230,26 @@ This phase focused on resolving dependency issues, guiding the user through manu
     *   Added loading state display while `isAuthLoading` is true.
     *   Added a fallback UI (error message) if `userType` is not determined after loading, to prevent runtime errors.
 
+8.  **Signup Redirection Fix (`Final UI/app/auth/signup/page.tsx`)**:
+    *   **Bug Identified**: User reported that after successful signup, they were redirected to the login page instead of directly to onboarding.
+    *   **Fix Implemented**:
+        *   Modified the `onSubmit` handler in `Final UI/app/auth/signup/page.tsx`.
+        *   After a successful `registerUser` API call, an immediate `loginUser` API call was added using the same credentials.
+        *   If this auto-login is successful, the `AuthContext` is updated via `auth.login(token, user)`.
+        *   The user is then redirected to `/auth/onboarding/verify-email`.
+        *   Toast notifications were updated to reflect this new flow (e.g., "Registration successful! Redirecting to onboarding...").
+        *   Error handling was added for the auto-login step, guiding the user to log in manually if it fails.
+    *   **User Verification**: User confirmed the fix works as expected, streamlining the new user experience.
+
 ## Current Project Status
 
-*   **Frontend**: `Final UI` contains the merged UIs. It has an API service layer, authentication context, protected routes, and toast notifications. Login and Signup forms interact with the backend. The `OnboardingStepper` now correctly uses the authenticated user's type.
+*   **Frontend**: `Final UI` contains the merged UIs. It has an API service layer, authentication context, protected routes, and toast notifications. Login and Signup forms interact with the backend. The `OnboardingStepper` now correctly uses the authenticated user's type. The signup flow now correctly auto-logs in the user and redirects to onboarding.
 *   **Backend**: The Node.js/Express backend is **runnable** as dependencies were successfully installed by the AI. It provides endpoints for user registration, login, and fetching user profiles. Database schema for users is defined.
-*   **Connectivity**: Frontend and backend are connected and, as per user confirmation, are functional when manually set up correctly.
+*   **Connectivity**: Frontend and backend are connected and, as per user confirmation, are functional when manually set up correctly. The registration-to-onboarding flow is now smoother.
 *   **Key Changes in this Phase**:
     *   Backend dependencies are now installed.
     *   `OnboardingStepper` hardcoding is fixed.
+    *   Signup redirection logic fixed for better UX.
 *   **Persistent Sandbox/Tool Issues**:
     *   Frontend dependencies (`Final UI/`) could not be installed by the AI.
     *   Image assets from `Login Signup Landing` could not be migrated by the AI.
@@ -258,18 +270,26 @@ This phase focused on resolving dependency issues, guiding the user through manu
 6.  **Run Both Applications (If Not Already Done/Testing)**:
     *   Start the backend server (e.g., `npm run dev` in the `backend` directory).
     *   Start the frontend Next.js development server (e.g., `npm run dev` in the `Final UI` directory).
-    *   Test registration, login, and the initial onboarding flow to ensure `userType` is correctly handled.
+    *   Test registration (confirm auto-login and redirection to onboarding), login, and the initial onboarding flow to ensure `userType` is correctly handled.
 
 ## Next Steps for AI (If Further Work is Requested)
 
-1.  **Implement Onboarding API Endpoints**: Create backend routes and database logic for saving all user onboarding data (profile details, preferences, resume path, culture fit answers).
-2.  **Connect Onboarding Frontend**: Update the frontend onboarding pages (profile, preferences, resume, culture) to submit data to these new backend endpoints using the API service.
+1.  **Implement Onboarding API Endpoints**: Create backend routes and database logic for saving all user onboarding data. This includes:
+    *   Email verification status (already part of `users` table, might need an update mechanism).
+    *   Profile details (e.g., full name if not captured at signup, bio, location, etc. - may require new table `user_profiles`).
+    *   Job preferences (e.g., role types, salary expectations, remote/office - may require new table `user_preferences`).
+    *   Work culture fit answers (may require new table `user_culture_fit_responses`).
+    *   Resume/CV: Store file path or reference (actual file upload handling might be complex and require a dedicated service or further discussion on storage strategy).
+2.  **Connect Onboarding Frontend**: Update the frontend onboarding pages (`verify-email`, `profile`, `preferences`, `culture`, `resume`) to:
+    *   Fetch any existing onboarding data for the user if they return to a step.
+    *   Submit data to the new backend endpoints using the API service.
+    *   Handle navigation between steps, potentially marking steps as complete.
 3.  **User Profile Management**:
-    *   Implement backend logic for creating/updating detailed user profiles (beyond initial registration fields). This would involve new tables (e.g., `user_profiles`, `experiences`, `education`).
-    *   Create frontend UI for profile viewing and editing.
+    *   Implement backend logic for creating/updating detailed user profiles (beyond initial registration and onboarding fields). This would likely expand on the tables created for onboarding (e.g., `user_profiles`, `experiences`, `education`).
+    *   Create frontend UI for profile viewing and editing by the authenticated user.
 4.  **Password Reset/Forgot Password**: Implement this functionality (backend routes for token generation/validation, email sending (mocked/logged for now), frontend pages).
-5.  **Refine Error Handling & UX**: Improve user feedback, loading states, and error display across the application, especially for API interactions.
-6.  **Type Safety**: Add specific TypeScript types for API payloads (request/response) and database models, replacing `any` where used, particularly in `Final UI/lib/api/index.ts` and context.
-7.  **Testing**: Add unit tests for backend logic (especially API routes and services) and potentially UI component tests for critical parts of the frontend.
+5.  **Refine Error Handling & UX**: Continue to improve user feedback, loading states, and error display across the application, especially for API interactions during onboarding and profile management.
+6.  **Type Safety**: Add specific TypeScript types for API payloads (request/response) and database models for all new onboarding and profile features.
+7.  **Testing**: Add unit tests for new backend logic (API routes, services for onboarding/profile) and consider UI component tests for the onboarding steps.
 8.  **Resolve `semver` Vulnerability (Optional/If Critical)**: Investigate workarounds or alternative packages if the `semver` vulnerability in `nodemon`'s dependency chain becomes a critical issue. This might involve overriding dependencies or waiting for upstream fixes.
 ```
