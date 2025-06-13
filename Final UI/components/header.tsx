@@ -154,7 +154,7 @@ export default function Header() {
                 <Link href="/terms" className="font-subheading">Terms of Service</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/logout" className="font-subheading">Log out</Link>
+                <Link href="/" className="font-subheading">Log out</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,117 +1,94 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff } from "lucide-react"
+import { Logo } from "@/components/logo"
+import { ChromeIcon, EyeIcon, EyeOffIcon } from "lucide-react" // Using ChromeIcon for Google
+import { useState } from "react"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    // TODO: Add login logic here
-    console.log("Login attempt:", formData)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-[#0056B3]/5 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/100N%20logo-hXZbA69LLfyoIxuGBxaKL2lq5TY9q7.png"
-              alt="100N"
-              className="h-12 w-auto"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="flex w-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden border">
+        {/* Left Side - Image and Text */}
+        <div className="w-1/2 flex flex-col items-center justify-center bg-[#FFFCF6] p-12">
+          <Image
+            src="/imagex.png"
+            alt="Decorative Abstract Pattern"
+            width={400}
+            height={400}
+            className="mb-10"
+            priority
+          />
+          <h2 className="text-3xl font-black text-brand-text-dark text-left w-full mb-2" style={{fontFamily: 'Inter, sans-serif'}}>
+              Where Connections Spark Opportunities
+            </h2>
+          <p className="text-lg text-brand-text-medium text-left w-full" style={{fontFamily: 'Inter, sans-serif'}}>
+            Real roles. Real startups.
+          </p>
+        </div>
+        {/* Right Side - Card */}
+        <div className="w-1/2 flex flex-col justify-center bg-white p-12 min-h-full">
+          <div className="mb-8 text-center">
+            <span className="text-2xl font-black text-brand-text-dark" style={{fontFamily: 'Inter, sans-serif'}}>100</span>
+            <span className="text-2xl font-black text-brand-blue ml-1" style={{fontFamily: 'Inter, sans-serif'}}>Networks</span>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your 100N account to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+          <h1 className="text-4xl font-black text-brand-text-dark mb-8 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Login</h1>
+          <Button
+            variant="outline"
+            className="w-full mb-6 border-brand-border text-brand-text-dark hover:bg-brand-bg-light-gray font-medium py-4 text-lg shadow-sm"
+          >
+            <ChromeIcon className="mr-2 h-6 w-6 text-brand-red" />
+            Sign in with Google
+          </Button>
+          <div className="flex items-center my-6">
+            <hr className="flex-grow border-brand-border" />
+            <span className="mx-4 text-base text-brand-text-medium font-medium">or Sign in with Mail</span>
+            <hr className="flex-grow border-brand-border" />
+          </div>
+          <form className="space-y-6">
+            <div>
+              <Label htmlFor="email" className="text-base font-semibold text-brand-text-medium">Email</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                required
+                placeholder="example@gmail.com"
+                className="mt-2 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-4 px-4 text-lg font-bold"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div>
+              <Label htmlFor="password" className="text-base font-semibold text-brand-text-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••••"
+                  className="mt-2 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-4 px-4 text-lg font-bold"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 px-4 flex items-center text-brand-text-medium hover:text-brand-blue"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
+                  {showPassword ? <EyeOffIcon className="h-6 w-6" /> : <EyeIcon className="h-6 w-6" />}
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center justify-between">
-              <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full bg-black hover:bg-brand-text-dark text-white py-4 font-bold text-lg rounded-lg mt-2 shadow-md">
+              Sign In
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link href="/auth/signup" className="text-blue-600 hover:underline font-medium">
-                Sign up
-              </Link>
-            </p>
+          <div className="mt-8 text-center">
+            <span className="text-base font-bold text-brand-text-dark">Don&apos;t have an account? </span>
+            <Link href="/auth/signup" className="font-bold text-brand-blue underline ml-1">Sign Up</Link>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
