@@ -7,6 +7,10 @@ interface RequestOptions extends RequestInit {
 async function request<T>(endpoint: string, options?: RequestOptions): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  // Add these console logs for debugging:
+  console.log('[API Service] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+  console.log('[API Service] Attempting to fetch full URL:', url);
+
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
   };
