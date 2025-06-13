@@ -68,59 +68,7 @@ export default function ProfilePage() {
     );
   }
 
-// --- Zod Schema Definitions ---
-const commonProfileSchema = z.object({
-  location: z.string().optional(), // Simplified for now, was a custom component
-  linkedin_url: z.string().url({ message: "Invalid LinkedIn URL, e.g. https://linkedin.com/in/yourprofile" }).optional().or(z.literal('')),
-  website_url: z.string().url({ message: "Invalid website URL, e.g. https://example.com" }).optional().or(z.literal('')),
-  bio: z.string().max(1000, "Bio should not exceed 1000 characters.").optional(),
-});
-
-const individualProfileSchema = commonProfileSchema.extend({
-  full_name: z.string().min(1, "Full name is required."), // From users table
-  professional_title: z.string().min(1, "Professional title is required.").optional(),
-  years_of_experience: z.string().optional(),
-  job_function: z.string().optional(),
-  key_skills: z.string().optional(), // Comma-separated
-  education_level: z.string().optional(),
-  field_of_study: z.string().optional(),
-  institution: z.string().optional(),
-});
-
-const companyProfileSchema = commonProfileSchema.extend({
-  company_name: z.string().min(1, "Company name is required."), // From users table
-  industry: z.string().optional(), // From users table
-  company_size: z.string().optional(), // From users table
-  company_type: z.string().optional(),
-  tech_stack: z.string().optional(), // Comma-separated
-});
-
-type IndividualProfileValues = z.infer<typeof individualProfileSchema>;
-type CompanyProfileValues = z.infer<typeof companyProfileSchema>;
-type ProfileFormValues = IndividualProfileValues | CompanyProfileValues;
-
-export default function ProfilePage() {
-  const { user, token, isLoading: isAuthLoading, refetchUser } = useAuth(); // Added refetchUser
-  const router = useRouter();
-  const userType = user?.user_type;
-
-  // const [location, setLocation] = useState("Noida, Uttar Pradesh"); // Will be handled by react-hook-form
-  // const [searchLocation, setSearchLocation] = useState(""); // Will be handled by react-hook-form or a separate component
-
-  // Loading and No User State
-  if (isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading authentication details...</div>;
-  }
-
-  if (!user || !userType) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <p className="mb-4">User not found or user type not determined. Please log in.</p>
-        <Button onClick={() => router.push('/auth/login')}>Go to Login</Button>
-      </div>
-    );
-  }
-
+  // This is the START of the first (correct) block of form logic
   const currentSchema = userType === 'individual' ? individualProfileSchema : companyProfileSchema;
 
   const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormValues>({
@@ -206,85 +154,88 @@ export default function ProfilePage() {
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
+  // This is the END of the first (correct) block of form logic
 
   // The return statement with the full form will be constructed iteratively.
-  const currentSchema = userType === 'individual' ? individualProfileSchema : companyProfileSchema;
+  // --- DUPLICATED CODE TO BE REMOVED STARTS BELOW ---
+  // const currentSchema = userType === 'individual' ? individualProfileSchema : companyProfileSchema;
 
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormValues>({
-    resolver: zodResolver(currentSchema),
-    defaultValues: {
-      full_name: userType === 'individual' ? user?.full_name || "" : undefined,
-      company_name: userType === 'company' ? user?.company_name || "" : undefined,
-      industry: userType === 'company' ? user?.industry || "" : undefined,
-      company_size: userType === 'company' ? user?.company_size || "" : undefined,
-      location: user?.profile?.location || "",
-      linkedin_url: user?.profile?.linkedin_url || "",
-      website_url: user?.profile?.website_url || "",
-      bio: user?.profile?.bio || "",
-      professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
-      years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
-      job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
-      key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
-      education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
-      field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
-      institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
-      company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
-      tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
-    },
-  });
+  // const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormValues>({
+  //   resolver: zodResolver(currentSchema),
+  //   defaultValues: {
+  //     full_name: userType === 'individual' ? user?.full_name || "" : undefined,
+  //     company_name: userType === 'company' ? user?.company_name || "" : undefined,
+  //     industry: userType === 'company' ? user?.industry || "" : undefined,
+  //     company_size: userType === 'company' ? user?.company_size || "" : undefined,
+  //     location: user?.profile?.location || "",
+  //     linkedin_url: user?.profile?.linkedin_url || "",
+  //     website_url: user?.profile?.website_url || "",
+  //     bio: user?.profile?.bio || "",
+  //     professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
+  //     years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
+  //     job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
+  //     key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
+  //     education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
+  //     field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
+  //     institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
+  //     company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
+  //     tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
+  //   },
+  // });
 
-  useEffect(() => {
-    if (user) {
-      const defaultVals = {
-        full_name: userType === 'individual' ? user?.full_name || "" : undefined,
-        company_name: userType === 'company' ? user?.company_name || "" : undefined,
-        industry: userType === 'company' ? user?.industry || "" : undefined,
-        company_size: userType === 'company' ? user?.company_size || "" : undefined,
-        location: user?.profile?.location || "",
-        linkedin_url: user?.profile?.linkedin_url || "",
-        website_url: user?.profile?.website_url || "",
-        bio: user?.profile?.bio || "",
-        professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
-        years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
-        job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
-        key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
-        education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
-        field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
-        institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
-        company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
-        tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
-      };
-      reset(defaultVals);
-    }
-  }, [user, userType, reset]);
+  // useEffect(() => {
+  //   if (user) {
+  //     const defaultVals = {
+  //       full_name: userType === 'individual' ? user?.full_name || "" : undefined,
+  //       company_name: userType === 'company' ? user?.company_name || "" : undefined,
+  //       industry: userType === 'company' ? user?.industry || "" : undefined,
+  //       company_size: userType === 'company' ? user?.company_size || "" : undefined,
+  //       location: user?.profile?.location || "",
+  //       linkedin_url: user?.profile?.linkedin_url || "",
+  //       website_url: user?.profile?.website_url || "",
+  //       bio: user?.profile?.bio || "",
+  //       professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
+  //       years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
+  //       job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
+  //       key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
+  //       education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
+  //       field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
+  //       institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
+  //       company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
+  //       tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
+  //     };
+  //     reset(defaultVals);
+  //   }
+  // }, [user, userType, reset]);
 
-  const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
-    if (!token) {
-      toast.error("Authentication token not found. Please log in again.");
-      return;
-    }
-    try {
-      let payload: Partial<ProfileFormValues> = {};
-      if (userType === 'individual') {
-        const { company_name, industry, company_size, company_type, tech_stack, ...individualData } = data as CompanyProfileValues & IndividualProfileValues;
-        payload = individualData;
-      } else {
-        const { full_name, professional_title, years_of_experience, job_function, key_skills, education_level, field_of_study, institution, ...companyData } = data as IndividualProfileValues & CompanyProfileValues;
-        payload = companyData;
-      }
-      if (userType === 'individual' && data.full_name) payload.full_name = data.full_name;
-      if (userType === 'company' && data.company_name) payload.company_name = data.company_name;
-      if (userType === 'company' && data.industry) payload.industry = data.industry;
-      if (userType === 'company' && data.company_size) payload.company_size = data.company_size;
+  // const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
+  //   if (!token) {
+  //     toast.error("Authentication token not found. Please log in again.");
+  //     return;
+  //   }
+  //   try {
+  //     let payload: Partial<ProfileFormValues> = {};
+  //     if (userType === 'individual') {
+  //       const { company_name, industry, company_size, company_type, tech_stack, ...individualData } = data as CompanyProfileValues & IndividualProfileValues;
+  //       payload = individualData;
+  //     } else {
+  //       const { full_name, professional_title, years_of_experience, job_function, key_skills, education_level, field_of_study, institution, ...companyData } = data as IndividualProfileValues & CompanyProfileValues;
+  //       payload = companyData;
+  //     }
+  //     if (userType === 'individual' && data.full_name) payload.full_name = data.full_name;
+  //     if (userType === 'company' && data.company_name) payload.company_name = data.company_name;
+  //     if (userType === 'company' && data.industry) payload.industry = data.industry;
+  //     if (userType === 'company' && data.company_size) payload.company_size = data.company_size;
 
-      await updateUserProfile(payload, token);
-      toast.success("Profile updated successfully!");
-      await refetchUser();
-      router.push(`/auth/onboarding/preferences`);
-    } catch (error: any) {
-      toast.error("Failed to update profile: " + (error.data?.message || error.message));
-    }
-  };
+  //     await updateUserProfile(payload, token);
+  //     toast.success("Profile updated successfully!");
+  //     await refetchUser();
+  //     router.push(`/auth/onboarding/preferences`);
+  //   } catch (error: any) {
+  //     toast.error("Failed to update profile: " + (error.data?.message || error.message));
+  //   }
+  // };
+  // --- DUPLICATED CODE TO BE REMOVED ENDS ---
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
