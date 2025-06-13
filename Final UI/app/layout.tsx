@@ -9,6 +9,7 @@ import HeaderWrapper from "@/components/header-wrapper";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute"; // Import ProtectedRoute
 import { usePathname } from 'next/navigation'; // Import usePathname
+import { Toaster } from 'sonner'; // New import
 
 const inter = Inter({ subsets: ["latin"] });
 const lora = Lora({ 
@@ -83,6 +84,7 @@ export default function RootLayout({
               {pageContent} {/* Wrap other app pages with ProtectedRoute */}
             </ProtectedRoute>
           )}
+              <Toaster richColors position="top-right" /> {/* Toaster added here */}
         </AuthProvider>
       </body>
     </html>

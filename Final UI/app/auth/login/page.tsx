@@ -15,8 +15,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { loginUser } from "@/lib/api"; // Import the API function
 import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
+import { toast } from "sonner"; // Import toast
 
-// Define Zod schema for login
+// Zod schema (remains the same)
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(1, { message: "Password is required." }), // Min 1, actual length check by backend
@@ -27,10 +28,10 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  // Removed apiError state
 
   const router = useRouter();
-  const auth = useAuth(); // Get auth context methods
+  const auth = useAuth();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -42,20 +43,20 @@ export default function LoginPage() {
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
-    setApiError(null);
+    // Removed setApiError(null);
     try {
       const response = await loginUser(data);
       // Assuming response is { token: string, user: User }
       if (response.token && response.user) {
-        auth.login(response.token, response.user); // Update context, stores token in localStorage
-        router.push('/feed'); // Redirect to a protected route
+        toast.success("Login successful! Redirecting..."); // Optional success toast
+        auth.login(response.token, response.user);
+        router.push('/feed');
       } else {
-        // Should not happen if API is consistent
         throw new Error("Login response did not include token or user data.");
       }
     } catch (error: any) {
       console.error("Login failed:", error);
-      setApiError(error.data?.message || error.message || "An unexpected error occurred during login.");
+      toast.error(error.data?.message || error.message || "An unexpected error occurred during login.");
     } finally {
       setIsLoading(false);
     }
@@ -64,9 +65,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="flex w-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden border">
-        <div className="w-1/2 flex-col items-center justify-center bg-[#FFFCF6] p-12 hidden md:flex"> {/* Hidden on small screens */}
+        <div className="w-1/2 flex-col items-center justify-center bg-[#FFFCF6] p-12 hidden md:flex">
           <Image
-            src="/imagex.png" // This image will be broken due to earlier migration issues
+            src="/imagex.png" // This image will be broken
             alt="Decorative Abstract Pattern"
             width={400}
             height={400}
@@ -86,13 +87,6 @@ export default function LoginPage() {
             <span className="text-2xl font-black text-brand-blue ml-1" style={{fontFamily: 'Inter, sans-serif'}}>Networks</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-brand-text-dark mb-8 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Login</h1>
-
-          {/* Removed "Sign in with Google" as it's not functional */}
-          {/* <div className="flex items-center my-6">
-            <hr className="flex-grow border-brand-border" />
-            <span className="mx-4 text-base text-brand-text-medium font-medium">or Sign in with Mail</span>
-            <hr className="flex-grow border-brand-border" />
-          </div> */}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
@@ -127,7 +121,7 @@ export default function LoginPage() {
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
 
-            {apiError && <p className="text-red-500 text-sm text-center">{apiError}</p>}
+            {/* Removed direct rendering of apiError */}
 
             <Button
               type="submit"

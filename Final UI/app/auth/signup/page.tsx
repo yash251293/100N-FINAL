@@ -14,9 +14,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { registerUser } from "@/lib/api"; // Import the API function
+import { registerUser } from "@/lib/api";
+import { toast } from "sonner"; // Import toast
 
-// Define Zod schema
+// Zod schema (remains the same)
 const formSchema = z.object({
   user_type: z.enum(["individual", "company"]),
   full_name: z.string().optional(), // Optional at base, required conditionally below
@@ -52,8 +53,7 @@ type SignUpFormValues = z.infer<typeof formSchema>;
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [apiSuccess, setApiSuccess] = useState<string | null>(null);
+  // Removed apiError and apiSuccess states
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,17 +75,14 @@ export default function SignUpPage() {
 
   const userType = watch("user_type");
 
-  // Effect to update user_type in form when URL param changes (if page isn't fully reloaded)
   useEffect(() => {
     setValue("user_type", initialUserType);
   }, [initialUserType, setValue]);
 
   const onSubmit: SubmitHandler<SignUpFormValues> = async (data) => {
     setIsLoading(true);
-    setApiError(null);
-    setApiSuccess(null);
+    // Removed setApiError(null) and setApiSuccess(null);
 
-    // Prepare data for API, removing confirmPassword and unnecessary conditional fields
     const { confirmPassword, ...apiData } = data;
     if (apiData.user_type === 'individual') {
         delete apiData.company_name;
@@ -97,15 +94,14 @@ export default function SignUpPage() {
 
     try {
       const response = await registerUser(apiData);
-      // Assuming backend returns a user object or success message
-      setApiSuccess("Registration successful! Redirecting to login...");
+      toast.success("Registration successful! Redirecting to login...");
       console.log("Registration successful:", response);
       setTimeout(() => {
-        router.push('/auth/login'); // Redirect to login after a short delay
+        router.push('/auth/login');
       }, 2000);
     } catch (error: any) {
       console.error("Registration failed:", error);
-      setApiError(error.data?.message || error.message || "An unexpected error occurred.");
+      toast.error(error.data?.message || error.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
@@ -114,9 +110,9 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="flex w-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden border">
-        <div className="w-1/2 flex-col items-center justify-center bg-[#FFFCF6] p-12 hidden md:flex"> {/* Hidden on small screens */}
+        <div className="w-1/2 flex-col items-center justify-center bg-[#FFFCF6] p-12 hidden md:flex">
           <Image
-            src="/imagex.png" // This image will be broken due to earlier migration issues
+            src="/imagex.png" // This image will be broken
             alt="Decorative Abstract Pattern"
             width={400}
             height={400}
@@ -155,112 +151,55 @@ export default function SignUpPage() {
           </div>
           {errors.user_type && <p className="text-red-500 text-xs mt-1">{errors.user_type.message}</p>}
 
-
-          {/* Removed "Sign up with Google" button for now as it's not functional */}
-          {/* <div className="flex items-center my-6">
-            <hr className="flex-grow border-brand-border" />
-            <span className="mx-4 text-base text-brand-text-medium font-medium">or Sign up with Mail</span>
-            <hr className="flex-grow border-brand-border" />
-          </div> */}
-
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Conditional Fields for individual/company (same as before) */}
             {userType === 'individual' && (
               <div>
                 <Label htmlFor="fullName" className="text-sm font-semibold text-brand-text-medium">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Your Name"
-                  {...register("full_name")}
-                  className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-                />
+                <Input id="fullName" type="text" placeholder="Your Name" {...register("full_name")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
                 {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
               </div>
             )}
-
             {userType === 'company' && (
               <>
                 <div>
                   <Label htmlFor="companyName" className="text-sm font-semibold text-brand-text-medium">Company Name</Label>
-                  <Input
-                    id="companyName"
-                    type="text"
-                    placeholder="Your Company Name"
-                    {...register("company_name")}
-                    className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-                  />
+                  <Input id="companyName" type="text" placeholder="Your Company Name" {...register("company_name")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
                   {errors.company_name && <p className="text-red-500 text-xs mt-1">{errors.company_name.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="industry" className="text-sm font-semibold text-brand-text-medium">Industry (Optional)</Label>
-                  <Input
-                    id="industry"
-                    type="text"
-                    placeholder="e.g., Technology, Healthcare"
-                    {...register("industry")}
-                    className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-                  />
+                  <Input id="industry" type="text" placeholder="e.g., Technology, Healthcare" {...register("industry")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
                 </div>
                 <div>
                   <Label htmlFor="companySize" className="text-sm font-semibold text-brand-text-medium">Company Size (Optional)</Label>
-                  <Input
-                    id="companySize"
-                    type="text"
-                    placeholder="e.g., 1-10 employees"
-                    {...register("company_size")}
-                    className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-                  />
+                  <Input id="companySize" type="text" placeholder="e.g., 1-10 employees" {...register("company_size")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
                 </div>
               </>
             )}
-
+            {/* Email, Password, Confirm Password fields (same as before) */}
             <div>
               <Label htmlFor="email" className="text-sm font-semibold text-brand-text-medium">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="example@gmail.com"
-                {...register("email")}
-                className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-              />
+              <Input id="email" type="email" placeholder="example@gmail.com" {...register("email")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
             </div>
-
             <div>
               <Label htmlFor="password" className="text-sm font-semibold text-brand-text-medium">Password</Label>
               <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••••"
-                  {...register("password")}
-                  className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-brand-text-medium hover:text-brand-blue"
-                >
+                <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="••••••••••" {...register("password")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-brand-text-medium hover:text-brand-blue">
                   {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                 </button>
               </div>
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
-
             <div>
               <Label htmlFor="confirmPassword" className="text-sm font-semibold text-brand-text-medium">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••••"
-                {...register("confirmPassword")}
-                className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"
-              />
+              <Input id="confirmPassword" type={showPassword ? 'text' : 'password'} placeholder="••••••••••" {...register("confirmPassword")} className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-brand-blue focus:ring-1 focus:ring-brand-blue py-3 px-3 text-base"/>
               {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>}
             </div>
 
-            {apiError && <p className="text-red-500 text-sm text-center">{apiError}</p>}
-            {apiSuccess && <p className="text-green-500 text-sm text-center">{apiSuccess}</p>}
+            {/* Removed direct rendering of apiError and apiSuccess */}
 
             <Button
               type="submit"
