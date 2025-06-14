@@ -50,16 +50,77 @@ type ProfileFormValues = IndividualProfileValues | CompanyProfileValues;
 
 
 export default function ProfilePage() {
-  const { user, token, isLoading: isAuthLoading, refetchUser } = useAuth();
-  const router = useRouter();
+  const { user, token, isLoading: isAuthLoading, refetchUser } = useAuth(); // Hook 1
+  const router = useRouter(); // Hook 2
+
+  // Determine userType for schema selection.
+  // User object might be initially undefined while isAuthLoading is true.
   const userType = user?.user_type;
 
-  // Loading and No User State
+  // Define currentSchema based on userType.
+  // Provide a fallback to individualProfileSchema if userType is initially undefined.
+  // This ensures useForm always receives a valid schema.
+  const currentSchema = userType === 'company' ? companyProfileSchema : individualProfileSchema;
+
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormValues>({
+    resolver: zodResolver(currentSchema), // currentSchema will be defined
+    defaultValues: {
+      // Initial default values can be empty or based on a general structure.
+      // The useEffect below will populate them once 'user' data is available.
+      full_name: "",
+      company_name: "",
+      industry: "",
+      company_size: "",
+      location: "",
+      linkedin_url: "",
+      website_url: "",
+      bio: "",
+      professional_title: "",
+      years_of_experience: "",
+      job_function: "",
+      key_skills: "",
+      education_level: "",
+      field_of_study: "",
+      institution: "",
+      company_type: "",
+      tech_stack: "",
+    },
+  }); // Hook 3
+
+  // useEffect to reset form with user-specific default values when user data changes or becomes available.
+  useEffect(() => {
+    if (user) { // user object is available
+      const userSpecificType = user.user_type; // Use user.user_type directly from the available user object
+      const defaultVals = {
+        full_name: userSpecificType === 'individual' ? user.full_name || "" : undefined,
+        company_name: userSpecificType === 'company' ? user.company_name || "" : undefined,
+        industry: userSpecificType === 'company' ? user.industry || "" : undefined,
+        company_size: userSpecificType === 'company' ? user.company_size || "" : undefined,
+        location: user.profile?.location || "",
+        linkedin_url: user.profile?.linkedin_url || "",
+        website_url: user.profile?.website_url || "",
+        bio: user.profile?.bio || "",
+        professional_title: userSpecificType === 'individual' ? user.profile?.professional_title || "" : undefined,
+        years_of_experience: userSpecificType === 'individual' ? user.profile?.years_of_experience || "" : undefined,
+        job_function: userSpecificType === 'individual' ? user.profile?.job_function || "" : undefined,
+        key_skills: userSpecificType === 'individual' ? user.profile?.key_skills || "" : undefined,
+        education_level: userSpecificType === 'individual' ? user.profile?.education_level || "" : undefined,
+        field_of_study: userSpecificType === 'individual' ? user.profile?.field_of_study || "" : undefined,
+        institution: userSpecificType === 'individual' ? user.profile?.institution || "" : undefined,
+        company_type: userSpecificType === 'company' ? user.profile?.company_type || "" : undefined,
+        tech_stack: userSpecificType === 'company' ? user.profile?.tech_stack || "" : undefined,
+      };
+      reset(defaultVals);
+    }
+  }, [user, reset]); // userType (derived from user) is implicitly handled by user dependency. Reset is stable.
+
+  // Conditional returns *after* all hooks have been called.
   if (isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading authentication details...</div>;
   }
 
-  if (!user || !userType) {
+  // If user is not available (e.g. not logged in) or user_type is missing after loading.
+  if (!user || !user.user_type) { // Check user.user_type directly
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <p className="mb-4">User not found or user type not determined. Please log in.</p>
@@ -68,60 +129,9 @@ export default function ProfilePage() {
     );
   }
 
-  // This is the START of the first (correct) block of form logic
-  const currentSchema = userType === 'individual' ? individualProfileSchema : companyProfileSchema;
+  // The actual userType for rendering the form, derived from the now-guaranteed 'user' object.
+  const finalUserType = user.user_type;
 
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormValues>({
-    resolver: zodResolver(currentSchema),
-    defaultValues: {
-      // Prefill from user object (users table fields)
-      full_name: userType === 'individual' ? user?.full_name || "" : undefined,
-      company_name: userType === 'company' ? user?.company_name || "" : undefined,
-      industry: userType === 'company' ? user?.industry || "" : undefined,
-      company_size: userType === 'company' ? user?.company_size || "" : undefined,
-      // Prefill from user.profile (user_profiles table fields - assuming getCurrentUser fetches this)
-      // For now, profile fields will be blank or you can set defaults
-      location: user?.profile?.location || "", // Example: if user.profile exists
-      linkedin_url: user?.profile?.linkedin_url || "",
-      website_url: user?.profile?.website_url || "",
-      bio: user?.profile?.bio || "",
-      professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
-      years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
-      job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
-      key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
-      education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
-      field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
-      institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
-      company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
-      tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
-    },
-  });
-
-  // useEffect to reset form when user data changes (e.g. after initial load)
-  useEffect(() => {
-    if (user) {
-      const defaultVals = {
-        full_name: userType === 'individual' ? user?.full_name || "" : undefined,
-        company_name: userType === 'company' ? user?.company_name || "" : undefined,
-        industry: userType === 'company' ? user?.industry || "" : undefined,
-        company_size: userType === 'company' ? user?.company_size || "" : undefined,
-        location: user?.profile?.location || "",
-        linkedin_url: user?.profile?.linkedin_url || "",
-        website_url: user?.profile?.website_url || "",
-        bio: user?.profile?.bio || "",
-        professional_title: userType === 'individual' ? user?.profile?.professional_title || "" : undefined,
-        years_of_experience: userType === 'individual' ? user?.profile?.years_of_experience || "" : undefined,
-        job_function: userType === 'individual' ? user?.profile?.job_function || "" : undefined,
-        key_skills: userType === 'individual' ? user?.profile?.key_skills || "" : undefined,
-        education_level: userType === 'individual' ? user?.profile?.education_level || "" : undefined,
-        field_of_study: userType === 'individual' ? user?.profile?.field_of_study || "" : undefined,
-        institution: userType === 'individual' ? user?.profile?.institution || "" : undefined,
-        company_type: userType === 'company' ? user?.profile?.company_type || "" : undefined,
-        tech_stack: userType === 'company' ? user?.profile?.tech_stack || "" : undefined,
-      };
-      reset(defaultVals);
-    }
-  }, [user, userType, reset]);
 
   const onSubmit: SubmitHandler<ProfileFormValues> = async (data) => {
     if (!token) {
@@ -131,22 +141,27 @@ export default function ProfilePage() {
     try {
       // Ensure only relevant fields for the user type are sent
       let payload: Partial<ProfileFormValues> = {};
-      if (userType === 'individual') {
+      if (finalUserType === 'individual') { // Use finalUserType for logic
         const { company_name, industry, company_size, company_type, tech_stack, ...individualData } = data as CompanyProfileValues & IndividualProfileValues;
         payload = individualData;
-      } else {
+      } else { // company
         const { full_name, professional_title, years_of_experience, job_function, key_skills, education_level, field_of_study, institution, ...companyData } = data as IndividualProfileValues & CompanyProfileValues;
         payload = companyData;
       }
 
       // Include the base user fields that might be updated via profile
-      if (userType === 'individual' && data.full_name) payload.full_name = data.full_name;
-      if (userType === 'company' && data.company_name) payload.company_name = data.company_name;
-      if (userType === 'company' && data.industry) payload.industry = data.industry;
-      if (userType === 'company' && data.company_size) payload.company_size = data.company_size;
+      if (finalUserType === 'individual' && data.full_name) payload.full_name = data.full_name;
+      if (finalUserType === 'company' && data.company_name) payload.company_name = data.company_name;
+      if (finalUserType === 'company' && data.industry) payload.industry = data.industry;
+      if (finalUserType === 'company' && data.company_size) payload.company_size = data.company_size;
 
 
       await updateUserProfile(payload, token);
+    if (!token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+    try {
       toast.success("Profile updated successfully!");
       await refetchUser(); // Refetch user data to update context
       router.push(`/auth/onboarding/preferences`);
@@ -154,8 +169,6 @@ export default function ProfilePage() {
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
-  // This is the END of the first (correct) block of form logic
-
   // The return statement with the full form will be constructed iteratively.
 
   return (
@@ -164,20 +177,20 @@ export default function ProfilePage() {
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-black to-gray-800 rounded-2xl shadow-lg mb-4">
-            {userType === 'company' ? (
+            {finalUserType === 'company' ? ( // Use finalUserType for rendering
               <BuildingIcon className="w-8 h-8 text-white" />
             ) : (
               <UserIcon className="w-8 h-8 text-white" />
             )}
           </div>
           <h1 className="text-3xl font-bold text-brand-text-dark mb-3">
-            {userType === 'company'
+            {finalUserType === 'company' // Use finalUserType for rendering
               ? 'Tell us about your company'
               : 'Tell us about yourself'
             }
           </h1>
           <p className="text-brand-text-medium leading-relaxed">
-            {userType === 'company'
+            {finalUserType === 'company' // Use finalUserType for rendering
               ? 'Share your company details to help us connect you with the right talent and opportunities.'
               : 'Share your professional details to help us match you with amazing opportunities and connections.'
             }
@@ -190,7 +203,7 @@ export default function ProfilePage() {
             <div className="flex items-center space-x-2 mb-3">
               <MapPinIcon className="h-5 w-5 text-black" />
               <Label htmlFor="location" className="text-base font-semibold text-brand-text-dark">
-                {userType === 'company'
+                {finalUserType === 'company' // Use finalUserType for rendering
                   ? 'Where is your company headquartered?'
                   : 'Where are you located?'
                 } {/* Optional field, so no red star for now unless schema changes */}
@@ -210,16 +223,16 @@ export default function ProfilePage() {
             <div className="flex items-center space-x-2 mb-6">
               <UserIcon className="h-5 w-5 text-black" />
               <h2 className="text-xl font-semibold text-brand-text-dark">
-                {userType === 'company' ? 'Company Description' : 'Your Bio'}
+                {finalUserType === 'company' ? 'Company Description' : 'Your Bio'} {/* Use finalUserType for rendering */}
               </h2>
             </div>
             <div>
               <Label htmlFor="bio" className="block text-base font-semibold text-brand-text-dark mb-3">
-                 {userType === 'company' ? 'Tell us about your company...' : 'Write a short bio...'}
+                 {finalUserType === 'company' ? 'Tell us about your company...' : 'Write a short bio...'} {/* Use finalUserType for rendering */}
               </Label>
               <Textarea
                 id="bio"
-                placeholder={userType === 'company' ? 'Describe your company mission, values, and culture...' : 'Share a bit about your professional journey, interests, or what you are looking for...'}
+                placeholder={finalUserType === 'company' ? 'Describe your company mission, values, and culture...' : 'Share a bit about your professional journey, interests, or what you are looking for...'} {/* Use finalUserType for rendering */}
                 {...register("bio")}
                 className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 min-h-[120px]"
               />
@@ -227,7 +240,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {userType === 'company' ? (
+          {finalUserType === 'company' ? ( // Use finalUserType for rendering
             // Company Profile Sections
             <>
               {/* Company Details Section */}
