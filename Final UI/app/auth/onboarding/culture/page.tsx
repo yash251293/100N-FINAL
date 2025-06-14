@@ -87,32 +87,13 @@ const ImportanceButtonGroup: React.FC<ImportanceButtonGroupProps> = ({ selectedV
 )
 
 export default function CulturePage() {
-  const searchParams = useSearchParams(); // Keep for potential query param fallbacks if needed, but prioritize context
+  // All hooks are now at the top
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth(); // Added isAuthLoading
+  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth();
 
-  // Loading and Guard State
-  if (isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
-  }
-
-  const contextUserType = user?.user_type;
-
-  if (!contextUserType || contextUserType !== 'individual') {
-    // This page is strictly for individuals.
-    // If context is loaded and user is not 'individual' (or no user from context)
-    toast.error("Access denied: This page is for individual users only.");
-    // Redirect: if user exists but is wrong type, go to feed. If no user at all, go to login.
-    if (typeof window !== 'undefined') { // Ensure router.push is only called client-side
-        router.push(user ? '/feed' : '/auth/login');
-    }
-    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
-  }
-  // At this point, we are sure the user is 'individual' based on context.
-  const finalUserType = 'individual'; // This page is only for individuals
-
-  // The old useEffect for redirect is removed due to the guard above.
-
+  // culturePrefsInitial is used for defaultValues and for rendering ToggleChip components.
+  // It's defined here as it's static configuration for this form.
   const culturePrefsInitial = [
     { id: "say-in-work", label: "Having autonomy in how I work", selected: true },
     { id: "growth-opportunities", label: "Clear career advancement paths", selected: true },
@@ -128,8 +109,17 @@ export default function CulturePage() {
     { id: "social-impact", label: "Making a positive social impact", selected: false },
   ];
 
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch } = useForm<CultureFormValues>({
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+    watch,
+    reset, // Added reset for potential dynamic updates based on user data
+  } = useForm<CultureFormValues>({
     resolver: zodResolver(cultureSchema),
+    // Default values are set here. If these fields were meant to be populated from `user.profile`
+    // upon loading, a useEffect hook with `reset()` would be used (see commented example below).
     defaultValues: {
       culturePrefs: culturePrefsInitial.filter(p => p.selected).map(p => p.label),
       remotePolicyImportance: "Not important",
@@ -138,7 +128,43 @@ export default function CulturePage() {
     },
   });
 
-  const watchedDescription = watch("nextJobDescription", "");
+  const watchedDescription = watch("nextJobDescription", ""); // watch is called after useForm
+
+  // Example useEffect for populating form from user data (if needed for these fields):
+  // useEffect(() => {
+  //   if (user && user.profile) {
+  //     // Example: Assuming user.profile might store some of these preferences
+  //     const newDefaults: Partial<CultureFormValues> = {};
+  //     if (user.profile.culture_preferences_from_backend) { // Replace with actual field name
+  //       newDefaults.culturePrefs = user.profile.culture_preferences_from_backend;
+  //     }
+  //     if (user.profile.remote_importance_from_backend) { // Replace with actual field name
+  //       newDefaults.remotePolicyImportance = user.profile.remote_importance_from_backend;
+  //     }
+  //     // ... and so on for other fields
+  //
+  //     if (Object.keys(newDefaults).length > 0) {
+  //       reset(prevDefaults => ({ ...prevDefaults, ...newDefaults }));
+  //     }
+  //   }
+  // }, [user, reset]);
+
+  // Loading and Guard State - now after all hook calls
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
+  }
+
+  const contextUserType = user?.user_type;
+
+  if (!contextUserType || contextUserType !== 'individual') {
+    toast.error("Access denied: This page is for individual users only.");
+    if (typeof window !== 'undefined') {
+      router.push(user ? '/feed' : '/auth/login');
+    }
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+  }
+
+  const finalUserType = 'individual'; // This page is only for individuals
 
 
   const onSubmit: SubmitHandler<CultureFormValues> = async (data) => {
