@@ -12,55 +12,111 @@ export default function OnboardingDonePage() {
   const searchParams = useSearchParams();
   const router = useRouter(); // Initialize useRouter
   const { user, isLoading: isAuthLoading } = useAuth();
-  const queryUserType = searchParams.get('type');
+  const queryUserType = searchParams.get('type'); // Keep for potential fallback if needed initially
+
+  // --- Start of new logic based on OnboardingStepper ---
+
+  // Simplified step definitions (name, shortName, href are key)
+  const localIndividualSteps = [
+    { name: "Verify Email", href: "/auth/onboarding/verify-email", shortName: "Email" },
+    { name: "Profile", href: "/auth/onboarding/profile", shortName: "Profile" },
+    { name: "Preferences", href: "/auth/onboarding/preferences", shortName: "Preferences" },
+    { name: "Culture", href: "/auth/onboarding/culture", shortName: "Work Culture" }, // Adjusted shortName for display
+    { name: "Resume/CV", href: "/auth/onboarding/resume", shortName: "Resume" },
+    // No "Complete" meta-step here for calculation
+  ];
+
+  const localCompanySteps = [
+    { name: "Verify Email", href: "/auth/onboarding/verify-email", shortName: "Email" },
+    { name: "Company Profile", href: "/auth/onboarding/profile", shortName: "Company Info" }, // Adjusted shortName
+    { name: "Preferences", href: "/auth/onboarding/preferences", shortName: "Hiring Preferences" }, // Adjusted shortName
+    // No "Complete" meta-step here for calculation
+  ];
+
+  // Locally defined completion checker functions (same logic as in OnboardingStepper)
+  const isEmailVerified = (user: any): boolean => {
+    if (!user) return false;
+    return !!user.profile || !!user.company_name || !!user.full_name; // Proxy
+  };
+
+  const isProfileComplete = (user: any, userType: string | undefined): boolean => {
+    if (!user || !userType) return false;
+    const profile = user.profile;
+    if (userType === 'individual') {
+      return !!(user.full_name && (profile?.location || profile?.professional_title || profile?.bio));
+    }
+    if (userType === 'company') {
+      return !!(user.company_name && (profile?.location || profile?.company_type || profile?.bio));
+    }
+    return false;
+  };
+
+  const isPreferencesComplete = (user: any, userType: string | undefined): boolean => {
+    if (!user?.profile || !userType) return false;
+    const profile = user.profile;
+    if (userType === 'individual') {
+      return !!(profile.job_status || (profile.desired_roles && profile.desired_roles.length > 0));
+    }
+    if (userType === 'company') {
+      return !!(profile.hiring_status || (profile.hiring_roles && profile.hiring_roles.length > 0));
+    }
+    return false;
+  };
+
+  const isCultureComplete = (user: any, userType: string | undefined): boolean => {
+    if (userType !== 'individual' || !user?.profile) return false;
+    const profile = user.profile;
+    return !!(profile.ideal_next_job_description || (profile.culture_preferences && profile.culture_preferences.length > 0));
+  };
+
+  const isResumeComplete = (user: any, userType: string | undefined): boolean => {
+    if (userType !== 'individual' || !user?.profile) return false;
+    return !!user.profile.resume_file_path;
+  };
+
+  const stepCompletionCheckers: Record<string, (user: any, userType: string | undefined) => boolean> = {
+    "/auth/onboarding/verify-email": isEmailVerified,
+    "/auth/onboarding/profile": isProfileComplete,
+    "/auth/onboarding/preferences": isPreferencesComplete,
+    "/auth/onboarding/culture": isCultureComplete,
+    "/auth/onboarding/resume": isResumeComplete,
+  };
 
   if (isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
   }
 
-  // Prioritize userType from auth context once loaded
-  const finalUserType = user?.user_type || queryUserType || 'individual'; // Default to 'individual' if absolutely nothing else
+  const finalUserType = user?.user_type || queryUserType || 'individual';
 
-  if (!user && !queryUserType) {
+  if (!user) { // User object from useAuth is the primary source of truth
     toast.error("User data not available. Redirecting to login.");
     if (typeof window !== 'undefined') {
         router.push('/auth/login');
     }
     return <div className="min-h-screen flex items-center justify-center">User data not available. Please try logging in again.</div>;
   }
-  // The variable previously named 'userType' will now be 'finalUserType'
 
-  const calculateProfileCompletion = (currentUser: any) => { // Using 'any' for user type for simplicity here
-    if (!currentUser) return 0;
-    let percentage = 20; // Base for signup
+  const currentStepsData = finalUserType === 'company' ? localCompanySteps : localIndividualSteps;
+  const totalDataSteps = currentStepsData.length; // All defined steps are data steps here
 
-    if (currentUser.profile) {
-      percentage += 30; // Profile step initiated
-      if (currentUser.profile.bio) percentage += 5;
-      if (currentUser.profile.location) percentage += 5;
-      // Add more checks for key profile fields if desired
+  let trulyCompletedDataSteps = 0;
+  const stepCompletionStatus: Array<{ name: string; shortName: string; href: string; isComplete: boolean }> = [];
+
+  currentStepsData.forEach(step => {
+    const checker = stepCompletionCheckers[step.href];
+    let isComplete = false;
+    if (checker) {
+      isComplete = checker(user, finalUserType);
     }
-
-    // Check for preferences data (assuming these fields are on user.profile after refetch)
-    if (finalUserType === 'individual') {
-      if (currentUser.profile?.job_status || currentUser.profile?.desired_roles?.length > 0) {
-        percentage += 25;
-      }
-      // Check for culture data
-      if (currentUser.profile?.ideal_next_job_description || currentUser.profile?.culture_preferences?.length > 0) {
-        percentage += 20;
-      }
-    } else if (finalUserType === 'company') {
-      if (currentUser.profile?.hiring_status || currentUser.profile?.hiring_roles?.length > 0) {
-        percentage += 25;
-      }
-      // Companies don't have a separate 'culture' step in this flow, so max might be around 75-80 for them here.
+    if (isComplete) {
+      trulyCompletedDataSteps++;
     }
+    stepCompletionStatus.push({ ...step, isComplete });
+  });
 
-    return Math.min(percentage, 85); // Cap at a realistic pre-detailed-profile-completion max
-  };
+  const newCompletionPercentage = totalDataSteps > 0 ? Math.round((trulyCompletedDataSteps / totalDataSteps) * 100) : 0;
 
-  const completionPercentage = user ? calculateProfileCompletion(user) : 0;
+  // --- End of new logic ---
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
@@ -86,48 +142,28 @@ export default function OnboardingDonePage() {
         <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-brand-text-dark">Profile Completion Status</h2>
-            <span className="text-2xl font-bold text-black">{completionPercentage}%</span>
+            <span className="text-2xl font-bold text-black">{newCompletionPercentage}%</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {finalUserType === 'company' ? (
-              <>
-                <div className="flex items-center space-x-3">
-                  {user?.profile ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />}
-                  <span className={`text-sm font-medium ${user?.profile ? 'text-brand-text-dark' : 'text-gray-400'}`}>Company Information</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  {user?.profile?.hiring_status ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />}
-                  <span className={`text-sm font-medium ${user?.profile?.hiring_status ? 'text-brand-text-dark' : 'text-gray-400'}`}>Hiring Preferences</span>
-                </div>
-                {/* Company Culture section might be different or not part of this initial onboarding */}
-                <div className="flex items-center space-x-3 opacity-50">
-                  <div className="w-5 h-5 bg-gray-200 rounded-full" /> {/* Placeholder, not checked */}
-                  <span className="text-sm text-gray-400 font-medium">Company Culture (Details)</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center space-x-3">
-                  {user?.profile ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />}
-                  <span className={`text-sm font-medium ${user?.profile ? 'text-brand-text-dark' : 'text-gray-400'}`}>Personal Information</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  {user?.profile?.job_status ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />}
-                  <span className={`text-sm font-medium ${user?.profile?.job_status ? 'text-brand-text-dark' : 'text-gray-400'}`}>Job Preferences</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  {user?.profile?.ideal_next_job_description ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse" />}
-                  <span className={`text-sm font-medium ${user?.profile?.ideal_next_job_description ? 'text-brand-text-dark' : 'text-gray-400'}`}>Work Culture</span>
-                </div>
-              </>
-            )}
+            {stepCompletionStatus.map(step => (
+              <div className="flex items-center space-x-3" key={step.href}>
+                {step.isComplete ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                ) : (
+                  <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0" /> // Placeholder for incomplete
+                )}
+                <span className={`text-sm font-medium ${step.isComplete ? 'text-brand-text-dark' : 'text-gray-400'}`}>
+                  {step.shortName}
+                </span>
+              </div>
+            ))}
           </div>
 
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <div
               className="h-3 bg-gradient-to-r from-black to-green-500 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${completionPercentage}%` }}
+              style={{ width: `${newCompletionPercentage}%` }}
             />
           </div>
         </div>
