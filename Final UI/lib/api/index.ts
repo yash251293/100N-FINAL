@@ -114,3 +114,23 @@ export const updateUserProfile = async (profileData: any, token: string) => { //
     body: JSON.stringify(profileData),
   });
 };
+
+export const updateUserPreferences = async (preferencesData: any, token: string) => { // TODO: Define PreferencesData type
+  return request<any>('/users/preferences', { // TODO: Define UpdatePreferencesResponse type
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(preferencesData),
+  });
+};
+
+export const updateUserCulture = async (cultureData: any, token: string) => { // TODO: Define CultureData type (ideally CultureFormValues from the page)
+  return request<any>('/users/culture', { // TODO: Define UpdateCultureResponse type
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(cultureData),
+  });
+};

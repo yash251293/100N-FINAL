@@ -6,11 +6,29 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
+// import { useState } from "react" // useState will be partially replaced by RHF
+import { useState, useEffect } from "react"; // Keep useState for culturePrefsInitial, useEffect for defaultValues
 import { CheckCircle, HeartIcon, UsersIcon, BrainCircuitIcon } from "lucide-react"
-import Link from "next/link"
+import Link from "next/link" // Will be removed from submit button if using router.push from onSubmit
 import { OnboardingStepper } from "@/components/onboarding-stepper"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation" // Added useRouter
+
+// RHF and Zod imports
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { updateUserCulture } from "@/lib/api"; // Placeholder for API function
+
+// Zod Schema Definition
+const cultureSchema = z.object({
+  culturePrefs: z.array(z.string()).optional(),
+  remotePolicyImportance: z.string().optional(),
+  quietOfficeImportance: z.string().optional(),
+  nextJobDescription: z.string().max(300, "Description must be 300 characters or less.").optional(),
+});
+type CultureFormValues = z.infer<typeof cultureSchema>;
 
 interface ToggleChipProps {
   id: string
@@ -69,8 +87,19 @@ const ImportanceButtonGroup: React.FC<ImportanceButtonGroupProps> = ({ selectedV
 )
 
 export default function CulturePage() {
-  const searchParams = useSearchParams()
-  const userType = searchParams.get('type') || 'individual'
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, token, refetchUser } = useAuth();
+  const clientUserType = searchParams.get('type') || user?.user_type || 'individual';
+
+
+  // This page is intended for individuals. Redirect if not.
+  useEffect(() => {
+    if (user && user.user_type !== 'individual') {
+      toast.error("This page is for individual users only.");
+      router.push('/feed'); // Or some other appropriate page
+    }
+  }, [user, router]);
 
   const culturePrefsInitial = [
     { id: "say-in-work", label: "Having autonomy in how I work", selected: true },
@@ -85,15 +114,53 @@ export default function CulturePage() {
     { id: "work-life-balance", label: "Healthy work-life balance", selected: false },
     { id: "innovative-environment", label: "Innovative and creative environment", selected: false },
     { id: "social-impact", label: "Making a positive social impact", selected: false },
-  ]
-  const [culturePrefs, setCulturePrefs] = useState(culturePrefsInitial)
-  const [remotePolicyImportance, setRemotePolicyImportance] = useState("Not important")
-  const [quietOfficeImportance, setQuietOfficeImportance] = useState("Not important")
-  const [nextJobDescription, setNextJobDescription] = useState("")
+  ];
 
-  const toggleCulturePref = (id: string) => {
-    setCulturePrefs((prefs) => prefs.map((p) => (p.id === id ? { ...p, selected: !p.selected } : p)))
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch } = useForm<CultureFormValues>({
+    resolver: zodResolver(cultureSchema),
+    defaultValues: {
+      culturePrefs: culturePrefsInitial.filter(p => p.selected).map(p => p.label),
+      remotePolicyImportance: "Not important",
+      quietOfficeImportance: "Not important",
+      nextJobDescription: "",
+    },
+  });
+
+  const watchedDescription = watch("nextJobDescription", "");
+
+
+  const onSubmit: SubmitHandler<CultureFormValues> = async (data) => {
+    if (!token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    // The data parameter already contains the validated form values as per cultureSchema
+    // { culturePrefs: string[], remotePolicyImportance: string, quietOfficeImportance: string, nextJobDescription: string }
+
+    try {
+      await updateUserCulture(data, token);
+      toast.success("Culture preferences saved successfully!");
+
+      if (refetchUser) { // Ensure refetchUser is available
+        await refetchUser(); // Refetch user data to update context
+      }
+
+      router.push(`/auth/onboarding/resume?type=${clientUserType}`);
+
+    } catch (error: any) {
+      toast.error("Failed to save culture preferences: " + (error.data?.message || error.message));
+    }
+  };
+
+  if (user && user.user_type !== 'individual' && clientUserType !== 'individual') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>This page is for individual users only. Redirecting...</p>
+      </div>
+    );
   }
+
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
@@ -107,7 +174,7 @@ export default function CulturePage() {
           </p>
         </div>
 
-        <form className="space-y-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
           <div className="space-y-5">
             <div className="flex items-center space-x-2 mb-4">
               <HeartIcon className="h-5 w-5 text-black" />
@@ -118,17 +185,32 @@ export default function CulturePage() {
             <p className="text-sm text-brand-text-medium mb-4">
               Select all the factors that are important to you. This helps us match you with companies that share your priorities.
             </p>
-            <div className="flex flex-wrap gap-3">
-              {culturePrefs.map((pref) => (
-                <ToggleChip
-                  key={pref.id}
-                  id={pref.id}
-                  label={pref.label}
-                  isSelected={pref.selected}
-                  onToggle={toggleCulturePref}
-                />
-              ))}
-            </div>
+            <Controller
+              name="culturePrefs"
+              control={control}
+              render={({ field }) => (
+                <div className="flex flex-wrap gap-3">
+                  {culturePrefsInitial.map((pref) => (
+                    <ToggleChip
+                      key={pref.id}
+                      id={pref.id}
+                      label={pref.label}
+                      isSelected={field.value?.includes(pref.label) || false}
+                      onToggle={(id) => {
+                        const currentPref = culturePrefsInitial.find(p => p.id === id);
+                        if (!currentPref) return;
+                        const currentValue = field.value || [];
+                        const newValue = currentValue.includes(currentPref.label)
+                          ? currentValue.filter(label => label !== currentPref.label)
+                          : [...currentValue, currentPref.label];
+                        field.onChange(newValue);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            />
+            {errors.culturePrefs && <p className="text-red-500 text-xs mt-1">{errors.culturePrefs.message}</p>}
           </div>
 
           <div className="space-y-4">
@@ -141,7 +223,14 @@ export default function CulturePage() {
             <p className="text-sm text-brand-text-medium mb-3">
               This helps us understand your preferred work arrangement and match you accordingly.
             </p>
-            <ImportanceButtonGroup selectedValue={remotePolicyImportance} onSelect={setRemotePolicyImportance} />
+            <Controller
+              name="remotePolicyImportance"
+              control={control}
+              render={({ field }) => (
+                <ImportanceButtonGroup selectedValue={field.value || ""} onSelect={field.onChange} />
+              )}
+            />
+            {errors.remotePolicyImportance && <p className="text-red-500 text-xs mt-1">{errors.remotePolicyImportance.message}</p>}
           </div>
 
           <div className="space-y-4">
@@ -151,7 +240,14 @@ export default function CulturePage() {
             <p className="text-sm text-brand-text-medium mb-3">
               Some people thrive in collaborative, bustling environments while others prefer quiet, focused spaces.
             </p>
-            <ImportanceButtonGroup selectedValue={quietOfficeImportance} onSelect={setQuietOfficeImportance} />
+            <Controller
+              name="quietOfficeImportance"
+              control={control}
+              render={({ field }) => (
+                <ImportanceButtonGroup selectedValue={field.value || ""} onSelect={field.onChange} />
+              )}
+            />
+            {errors.quietOfficeImportance && <p className="text-red-500 text-xs mt-1">{errors.quietOfficeImportance.message}</p>}
           </div>
 
           <div className="space-y-4">
@@ -169,8 +265,7 @@ export default function CulturePage() {
             </div>
             <Textarea
               id="nextJobDescription"
-              value={nextJobDescription}
-              onChange={(e) => setNextJobDescription(e.target.value)}
+              {...register("nextJobDescription")}
               placeholder="I'm looking for a role where I can..."
               maxLength={300}
               className="bg-brand-bg-input border-brand-border min-h-[120px] focus:border-black focus:ring-2 focus:ring-black/20"
@@ -181,11 +276,12 @@ export default function CulturePage() {
               </p>
               <p className={cn(
                 "font-medium",
-                nextJobDescription.length > 250 ? "text-amber-600" : "text-brand-text-light"
+                watchedDescription.length > 250 ? "text-amber-600" : "text-brand-text-light"
               )}>
-                {nextJobDescription.length} / 300
+                {watchedDescription.length} / 300
               </p>
             </div>
+            {errors.nextJobDescription && <p className="text-red-500 text-xs mt-1">{errors.nextJobDescription.message}</p>}
           </div>
 
           <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
@@ -198,10 +294,10 @@ export default function CulturePage() {
           <div className="pt-6">
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-black hover:bg-gray-900 text-white py-3 font-medium text-base rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-              asChild
             >
-              <Link href={`/auth/onboarding/resume?type=${userType}`}>Complete Profile Setup →</Link>
+              {isSubmitting ? "Saving..." : "Complete Profile Setup →"}
             </Button>
           </div>
         </form>

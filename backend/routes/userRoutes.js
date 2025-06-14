@@ -186,4 +186,105 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/users/preferences - Update current user's preferences
+// Protected route: Requires authentication
+router.put('/preferences', authMiddleware, async (req, res, next) => { // Added next for error handling
+  const userId = req.user.userId;
+  const userType = req.user.userType; // Get userType from authenticated user
+
+  // Extract all possible preference fields from req.body
+  const {
+    // Individual preferences
+    jobStatus,
+    desiredRoles, // Array
+    workArrangement,
+    experienceLevel, // Renamed from experienceLevelPreference to match frontend state
+    salaryExpectationMin,
+    salaryExpectationMax,
+    salaryExpectationCurrency,
+    careerGoals, // Array
+    locations, // Array (used by individual)
+    // Company preferences
+    hiringStatus,
+    employmentType, // Frontend uses this for a single string, schema uses offered_employment_types (TEXT[])
+                    // For now, let's assume frontend will send a single string for employmentType
+                    // and offered_employment_types will be used if multiple types are supported later.
+                    // Or, adjust schema/frontend to match. Let's map employmentType to offered_employment_types as a single element array for now.
+    roles, // Array (roles company is hiring for)
+    companyLocations, // Array (used by company)
+    hiringSalaryMin,
+    hiringSalaryMax,
+    hiringSalaryCurrency
+  } = req.body;
+
+  const profileFieldsToUpdate = {};
+
+  if (userType === 'individual') {
+    if (jobStatus !== undefined) profileFieldsToUpdate.job_status = jobStatus;
+    if (desiredRoles !== undefined) profileFieldsToUpdate.desired_roles = desiredRoles; // Assuming array comes correctly
+    if (workArrangement !== undefined) profileFieldsToUpdate.work_arrangement = workArrangement;
+    if (experienceLevel !== undefined) profileFieldsToUpdate.experience_level_preference = experienceLevel;
+    if (salaryExpectationMin !== undefined) profileFieldsToUpdate.salary_expectation_min = salaryExpectationMin;
+    if (salaryExpectationMax !== undefined) profileFieldsToUpdate.salary_expectation_max = salaryExpectationMax;
+    if (salaryExpectationCurrency !== undefined) profileFieldsToUpdate.salary_expectation_currency = salaryExpectationCurrency;
+    if (careerGoals !== undefined) profileFieldsToUpdate.career_goals = careerGoals; // Assuming array
+    if (locations !== undefined) profileFieldsToUpdate.preferred_locations = locations; // Assuming array
+  } else if (userType === 'company') {
+    if (hiringStatus !== undefined) profileFieldsToUpdate.hiring_status = hiringStatus;
+    // Handling employmentType: frontend sends a single string, DB schema has offered_employment_types (TEXT[])
+    // For now, if employmentType (single string) is sent, store it as a single-element array in offered_employment_types.
+    // This can be refined if the frontend starts sending an array for employmentType.
+    if (employmentType !== undefined) profileFieldsToUpdate.offered_employment_types = [employmentType];
+    if (roles !== undefined) profileFieldsToUpdate.hiring_roles = roles; // Assuming array
+    if (companyLocations !== undefined) profileFieldsToUpdate.hiring_locations = companyLocations; // Assuming array
+    if (hiringSalaryMin !== undefined) profileFieldsToUpdate.hiring_salary_min = hiringSalaryMin;
+    if (hiringSalaryMax !== undefined) profileFieldsToUpdate.hiring_salary_max = hiringSalaryMax;
+    if (hiringSalaryCurrency !== undefined) profileFieldsToUpdate.hiring_salary_currency = hiringSalaryCurrency;
+  }
+
+  if (Object.keys(profileFieldsToUpdate).length === 0) {
+    return res.status(400).json({ message: 'No preference data provided to update.' });
+  }
+
+  // Construct the SET clause for the SQL query
+  const setClauses = Object.keys(profileFieldsToUpdate)
+    .map((key, index) => `"${key}" = $${index + 2}`) // Start parameters from $2 ($1 will be user_id)
+    .join(', ');
+  const values = Object.values(profileFieldsToUpdate);
+
+  const updateQuery = `
+    UPDATE user_profiles
+    SET ${setClauses}, updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = $1
+    RETURNING *;
+  `;
+
+  try {
+    const { rows } = await db.query(updateQuery, [userId, ...values]);
+    if (rows.length === 0) {
+      // This case should ideally not happen if user_id is valid and user_profiles entry was created during signup/profile update
+      // Or, if user_profiles row doesn't exist, we might need an UPSERT or INSERT here.
+      // For now, assuming user_profiles row exists from the main profile update.
+      // Consider creating a profile row if it doesn't exist, similar to the main /profile PUT route's UPSERT logic.
+      // For simplicity now, we'll return 404.
+      const userProfileCheck = await db.query('SELECT 1 FROM user_profiles WHERE user_id = $1', [userId]);
+      if (userProfileCheck.rows.length === 0) {
+         // If no profile exists, it's better to create one with these preferences
+         // This requires an INSERT statement. For now, let's stick to UPDATE and let client handle profile creation first.
+         // This could be a point of future improvement if preferences can be set before initial profile details.
+        return res.status(404).json({ message: 'User profile does not exist. Please complete initial profile setup.' });
+      }
+      // If profile exists but update affected 0 rows (e.g. user_id was wrong, though unlikely due to authMiddleware)
+      return res.status(404).json({ message: 'User profile not found or no changes made.' });
+    }
+    res.status(200).json({ message: 'Preferences updated successfully.', preferences: rows[0] });
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    // Pass error to the global error handler
+    const err = new Error('Server error while updating preferences.');
+    // err.statusCode = 500; // It's good practice to set a status code. Global handler might set this.
+    next(err); // Use next(err) to pass to global error handler
+  }
+});
+
 module.exports = router;

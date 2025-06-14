@@ -174,7 +174,7 @@ export default function OnboardingDonePage() {
             className="w-full bg-black hover:bg-gray-900 text-white py-4 text-lg font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
             asChild
           >
-            <Link href={`/auth/profile/complete?type=${userType}`}>
+            <Link href={`/auth/onboarding/profile?type=${userType}`}>
               <SparklesIcon className="w-6 h-6 mr-3" />
               {userType === 'company' ? 'Complete Your Company Profile' : 'Complete Your Professional Profile'}
             </Link>

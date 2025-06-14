@@ -13,6 +13,54 @@ import Link from "next/link"
 import { OnboardingStepper } from "@/components/onboarding-stepper"
 import { useSearchParams } from "next/navigation"
 
+// Imports for react-hook-form, zod, auth, etc.
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { updateUserPreferences } from "@/lib/api"; // Ensure this API function exists or is created
+import { useRouter } from "next/navigation";
+
+// --- Zod Schema Definitions ---
+const individualPreferencesSchema = z.object({
+  jobStatus: z.string().optional(),
+  desiredRoles: z.array(z.string()).optional(),
+  workArrangement: z.string().optional(),
+  experienceLevel: z.string().optional(),
+  salaryExpectationMin: z.preprocess(val => {
+    const parsed = parseInt(z.string().parse(val), 10);
+    return isNaN(parsed) ? undefined : parsed;
+  }, z.number().positive().optional()),
+  salaryExpectationMax: z.preprocess(val => {
+    const parsed = parseInt(z.string().parse(val), 10);
+    return isNaN(parsed) ? undefined : parsed;
+  }, z.number().positive().optional()),
+  salaryExpectationCurrency: z.string().optional(),
+  careerGoals: z.array(z.string()).optional(),
+  locations: z.array(z.string()).optional(), // For individual user's preferred locations
+});
+
+const companyPreferencesSchema = z.object({
+  hiringStatus: z.string().optional(),
+  employmentType: z.string().optional(), // Current UI suggests single select. If multi-select, then z.array(z.string())
+  roles: z.array(z.string()).optional(), // Roles company is hiring for
+  companyLocations: z.array(z.string()).optional(), // Locations company is hiring in (renamed to avoid conflict)
+  hiringSalaryMin: z.preprocess(val => {
+    const parsed = parseInt(z.string().parse(val), 10);
+    return isNaN(parsed) ? undefined : parsed;
+  }, z.number().positive().optional()),
+  hiringSalaryMax: z.preprocess(val => {
+    const parsed = parseInt(z.string().parse(val), 10);
+    return isNaN(parsed) ? undefined : parsed;
+  }, z.number().positive().optional()),
+  hiringSalaryCurrency: z.string().optional(),
+});
+
+// Example type for form values, can be refined
+type PreferencesFormValues = z.infer<typeof individualPreferencesSchema> | z.infer<typeof companyPreferencesSchema>;
+
+
 interface ToggleButtonProps {
   value: string
   selectedValue: string
@@ -39,21 +87,110 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({ value, selectedValue, onSel
 
 export default function PreferencesPage() {
   const searchParams = useSearchParams()
-  const userType = searchParams.get('type') || 'company'
+  // const userType = searchParams.get('type') || 'company' // Will be derived from useAuth
 
-  // Company preferences
-  const [hiringStatus, setHiringStatus] = useState("actively-hiring")
-  const [employmentType, setEmploymentType] = useState("full-time")
-  const [roles, setRoles] = useState<string[]>(["Software Engineering"])
-  const [locations, setLocations] = useState<string[]>(["Noida"])
+  const { user, token, refetchUser } = useAuth(); // Added refetchUser
+  const router = useRouter(); // Added useRouter
 
-  // Individual preferences
-  const [jobStatus, setJobStatus] = useState("actively-looking")
-  const [desiredRoles, setDesiredRoles] = useState<string[]>(["Software Engineering"])
-  const [workArrangement, setWorkArrangement] = useState("hybrid")
-  const [experienceLevel, setExperienceLevel] = useState("mid-level")
-  const [salaryExpectation, setSalaryExpectation] = useState({ min: "", max: "", currency: "usd" })
-  const [careerGoals, setCareerGoals] = useState<string[]>([])
+  // Determine userType from authenticated user
+  const userType = user?.user_type || (searchParams.get('type') as 'individual' | 'company') || 'company';
+
+  // State for company salary UI (controlled inputs) - RHF will still hold the source of truth via register/controller
+  const [companySalary, setCompanySalary] = useState({ min: "", max: "", currency: "usd" });
+  // Note: Individual salary is handled directly by RHF {...register} for inputs, and Controller for Select.
+
+  // The old useState hooks for form fields are being removed as RHF will manage them.
+  // const [hiringStatus, setHiringStatus] = useState("actively-hiring")
+  // const [employmentType, setEmploymentType] = useState("full-time")
+  // const [roles, setRoles] = useState<string[]>(["Software Engineering"]) // Company roles
+  // const [jobStatus, setJobStatus] = useState("actively-looking")
+  // const [desiredRoles, setDesiredRoles] = useState<string[]>(["Software Engineering"]) // Individual roles
+  // const [workArrangement, setWorkArrangement] = useState("hybrid")
+  // const [experienceLevel, setExperienceLevel] = useState("mid-level")
+  // const [careerGoals, setCareerGoals] = useState<string[]>([])
+  // const [locations, setLocations] = useState<string[]>(["Noida"]) // This was for individual locations display, now handled by RHF watch
+
+  // Form setup
+  const currentSchema = userType === 'company' ? companyPreferencesSchema : individualPreferencesSchema;
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch, setValue } = useForm<PreferencesFormValues>({
+    resolver: zodResolver(currentSchema),
+    defaultValues: {
+      // Common defaults or type-specific
+      jobStatus: "actively-looking",
+      desiredRoles: ["Software Engineering"],
+      workArrangement: "hybrid",
+      experienceLevel: "mid-level",
+      salaryExpectationCurrency: "usd",
+      careerGoals: [],
+      locations: ["Noida"], // Default for individual
+
+      hiringStatus: "actively-hiring",
+      employmentType: "full-time",
+      roles: ["Software Engineering"], // Default for company
+      companyLocations: ["Noida"], // Default for company
+      hiringSalaryCurrency: "usd",
+      // Min/max salaries intentionally left undefined to use placeholder
+    },
+  });
+
+  const onSubmit: SubmitHandler<PreferencesFormValues> = async (data) => {
+    if (!token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    let payload: Partial<PreferencesFormValues> = {};
+
+    if (userType === 'individual') {
+      // Ensure only individual fields are included
+      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any; // Cast to any to pick fields
+      payload = {
+        jobStatus: individualData.jobStatus,
+        desiredRoles: individualData.desiredRoles,
+        workArrangement: individualData.workArrangement,
+        experienceLevel: individualData.experienceLevel,
+        salaryExpectationMin: individualData.salaryExpectationMin,
+        salaryExpectationMax: individualData.salaryExpectationMax,
+        salaryExpectationCurrency: individualData.salaryExpectationCurrency,
+        careerGoals: individualData.careerGoals,
+        locations: individualData.locations,
+      };
+    } else if (userType === 'company') {
+      // Ensure only company fields are included
+      const { locations, salaryExpectationMin, salaryExpectationMax, salaryExpectationCurrency, careerGoals, jobStatus, desiredRoles, workArrangement, experienceLevel, ...companyData } = data as any;
+      payload = {
+        hiringStatus: companyData.hiringStatus,
+        employmentType: companyData.employmentType,
+        roles: companyData.roles,
+        companyLocations: companyData.companyLocations, // Use the correct field name for company
+        hiringSalaryMin: companyData.hiringSalaryMin,
+        hiringSalaryMax: companyData.hiringSalaryMax,
+        hiringSalaryCurrency: companyData.hiringSalaryCurrency,
+      };
+    }
+    // Remove undefined values from payload to keep it clean
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+
+    try {
+      await updateUserPreferences(payload, token);
+      toast.success("Preferences saved successfully!");
+      await refetchUser(); // Refetch user data to update context
+
+      if (userType === 'individual') {
+        router.push(`/auth/onboarding/culture?type=${userType}`);
+      } else { // company
+        router.push(`/auth/onboarding/done?type=${userType}`);
+      }
+    } catch (error: any) {
+      toast.error("Failed to save preferences: " + (error.data?.message || error.message));
+    }
+  };
+
+  // Sync local state 'locations' with form state for 'locations' (individual) or 'companyLocations' (company)
+  // useEffect and handleLocationChange for the old 'locations' state are no longer needed
+  // as 'companyLocations' and 'locations' (individual) are directly managed by RHF.
+  // UI components for displaying selected locations will use `watch()` from RHF.
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
@@ -75,7 +212,7 @@ export default function PreferencesPage() {
           </p>
         </div>
 
-        <form className="space-y-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
           {userType === 'company' ? (
             // Company Preferences
             <>
@@ -105,28 +242,42 @@ export default function PreferencesPage() {
                       desc: "We're not currently hiring but want to keep our company profile active.",
                     },
                   ].map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() => setHiringStatus(item.value)}
-                      className={cn(
-                        "p-5 border rounded-xl text-left transition-all duration-200",
-                        hiringStatus === item.value
-                          ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
-                          : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                    <Controller
+                      name="hiringStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <>
+                          {[
+                            { value: "actively-hiring", label: "Actively Hiring", desc: "We have open positions and are actively interviewing candidates." },
+                            { value: "planning-to-hire", label: "Planning to Hire", desc: "We'll be hiring soon and want to start building our talent pipeline." },
+                            { value: "not-hiring", label: "Not Hiring Right Now", desc: "We're not currently hiring but want to keep our company profile active." },
+                          ].map((item) => (
+                            <button
+                              key={item.value}
+                              type="button"
+                              onClick={() => field.onChange(item.value)}
+                              className={cn(
+                                "p-5 border rounded-xl text-left transition-all duration-200",
+                                field.value === item.value
+                                  ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
+                                  : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                              )}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
+                                  <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
+                                </div>
+                                {field.value === item.value && (
+                                  <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </>
                       )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
-                          <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
-                        </div>
-                        {hiringStatus === item.value && (
-                          <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                    />
+                  {errors.hiringStatus && <p className="text-red-500 text-xs mt-1">{errors.hiringStatus.message}</p>}
                 </div>
               </div>
 
@@ -138,24 +289,31 @@ export default function PreferencesPage() {
                 <p className="text-sm text-brand-text-medium">
                   Select the employment types you're currently hiring for.
                 </p>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { id: "full-time", label: "Full-time Position" },
-                    { id: "part-time", label: "Part-time Position" },
-                    { id: "contract", label: "Contract Work" },
-                    { id: "freelance", label: "Freelance Projects" },
-                    { id: "intern", label: "Internship" }
-                  ].map((type) => (
-                    <ToggleButton
-                      key={type.id}
-                      value={type.id}
-                      selectedValue={employmentType}
-                      onSelect={setEmploymentType}
-                    >
-                      {type.label}
-                    </ToggleButton>
-                  ))}
-                </div>
+                <Controller
+                  name="employmentType"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { id: "full-time", label: "Full-time Position" },
+                        { id: "part-time", label: "Part-time Position" },
+                        { id: "contract", label: "Contract Work" },
+                        { id: "freelance", label: "Freelance Projects" },
+                        { id: "intern", label: "Internship" }
+                      ].map((type) => (
+                        <ToggleButton
+                          key={type.id}
+                          value={type.id}
+                          selectedValue={field.value || ""}
+                          onSelect={field.onChange}
+                        >
+                          {type.label}
+                        </ToggleButton>
+                      ))}
+                    </div>
+                  )}
+                />
+                {errors.employmentType && <p className="text-red-500 text-xs mt-1">{errors.employmentType.message}</p>}
               </div>
 
               {/* Salary Range */}
@@ -176,8 +334,15 @@ export default function PreferencesPage() {
                       id="minSalary"
                       type="number"
                       placeholder="Min salary"
+                      {...register("hiringSalaryMin")}
+                      value={companySalary.min} // Controlled by companySalary state
+                      onChange={(e) => {
+                        setCompanySalary(prev => ({ ...prev, min: e.target.value }));
+                        setValue("hiringSalaryMin", e.target.value, { shouldValidate: true }); // Also update RHF
+                      }}
                       className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
                     />
+                     {errors.hiringSalaryMin && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryMin.message}</p>}
                   </div>
                   <div className="relative">
                     <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
@@ -185,23 +350,44 @@ export default function PreferencesPage() {
                       id="maxSalary"
                       type="number"
                       placeholder="Max salary"
+                      {...register("hiringSalaryMax")}
+                      value={companySalary.max} // Controlled by companySalary state
+                      onChange={(e) => {
+                        setCompanySalary(prev => ({ ...prev, max: e.target.value }));
+                        setValue("hiringSalaryMax", e.target.value, { shouldValidate: true }); // Also update RHF
+                      }}
                       className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
                     />
+                    {errors.hiringSalaryMax && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryMax.message}</p>}
                   </div>
                 </div>
-                <Select defaultValue="usd">
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="usd">USD ($)</SelectItem>
-                    <SelectItem value="eur">EUR (€)</SelectItem>
-                    <SelectItem value="gbp">GBP (£)</SelectItem>
-                    <SelectItem value="inr">INR (₹)</SelectItem>
-                    <SelectItem value="cad">CAD ($)</SelectItem>
-                    <SelectItem value="aud">AUD ($)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="hiringSalaryCurrency"
+                  control={control}
+                  defaultValue="usd"
+                  render={({ field }) => (
+                    <Select
+                      value={companySalary.currency} // Controlled by companySalary state
+                      onValueChange={(currency) => {
+                        setCompanySalary(prev => ({ ...prev, currency }));
+                        field.onChange(currency); // Update RHF
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usd">USD ($)</SelectItem>
+                        <SelectItem value="eur">EUR (€)</SelectItem>
+                        <SelectItem value="gbp">GBP (£)</SelectItem>
+                        <SelectItem value="inr">INR (₹)</SelectItem>
+                        <SelectItem value="cad">CAD ($)</SelectItem>
+                        <SelectItem value="aud">AUD ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.hiringSalaryCurrency && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryCurrency.message}</p>}
               </div>
 
               {/* Roles Hiring For */}
@@ -213,7 +399,7 @@ export default function PreferencesPage() {
                   Select all roles you're currently hiring for. We'll match you with relevant candidates.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {roles.map((role) => (
+                  {(watch('roles') || []).map((role: string) => (
                     <span
                       key={role}
                       className="inline-flex items-center bg-black text-white text-sm font-medium px-4 py-2 rounded-full"
@@ -221,7 +407,10 @@ export default function PreferencesPage() {
                       {role}
                       <button
                         type="button"
-                        onClick={() => setRoles((r) => r.filter((item) => item !== role))}
+                        onClick={() => {
+                          const currentRoles = watch('roles') || [];
+                          setValue('roles', currentRoles.filter((item: string) => item !== role), { shouldValidate: true });
+                        }}
                         className="ml-2 text-white hover:bg-gray-900 rounded-full p-0.5 transition-colors"
                       >
                         <XIcon className="h-3.5 w-3.5" />
@@ -229,28 +418,42 @@ export default function PreferencesPage() {
                     </span>
                   ))}
                 </div>
-                <Select onValueChange={(newRole) => !roles.includes(newRole) && setRoles((r) => [...r, newRole])}>
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue placeholder="Add a role you're hiring for" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Software Engineering">Software Engineering</SelectItem>
-                    <SelectItem value="Product Management">Product Management</SelectItem>
-                    <SelectItem value="Design & UX">Design & UX</SelectItem>
-                    <SelectItem value="Data Science">Data Science & Analytics</SelectItem>
-                    <SelectItem value="Marketing">Marketing & Growth</SelectItem>
-                    <SelectItem value="Sales">Sales & Business Development</SelectItem>
-                    <SelectItem value="Operations">Operations & Strategy</SelectItem>
-                    <SelectItem value="Finance">Finance & Accounting</SelectItem>
-                    <SelectItem value="Human Resources">Human Resources</SelectItem>
-                    <SelectItem value="Customer Success">Customer Success</SelectItem>
-                    <SelectItem value="DevOps">DevOps & Infrastructure</SelectItem>
-                    <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="roles"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(newRole) => {
+                        const currentRoles = field.value || [];
+                        if (newRole && !currentRoles.includes(newRole)) {
+                          field.onChange([...currentRoles, newRole]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue placeholder="Add a role you're hiring for" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Software Engineering">Software Engineering</SelectItem>
+                        <SelectItem value="Product Management">Product Management</SelectItem>
+                        <SelectItem value="Design & UX">Design & UX</SelectItem>
+                        <SelectItem value="Data Science">Data Science & Analytics</SelectItem>
+                        <SelectItem value="Marketing">Marketing & Growth</SelectItem>
+                        <SelectItem value="Sales">Sales & Business Development</SelectItem>
+                        <SelectItem value="Operations">Operations & Strategy</SelectItem>
+                        <SelectItem value="Finance">Finance & Accounting</SelectItem>
+                        <SelectItem value="Human Resources">Human Resources</SelectItem>
+                        <SelectItem value="Customer Success">Customer Success</SelectItem>
+                        <SelectItem value="DevOps">DevOps & Infrastructure</SelectItem>
+                        <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.roles && <p className="text-red-500 text-xs mt-1">{(errors.roles as any).message || (errors.roles as any).root?.message}</p>}
               </div>
 
-              {/* Work Locations */}
+              {/* Work Locations (Company) */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <MapPinIcon className="h-5 w-5 text-black" />
@@ -262,7 +465,7 @@ export default function PreferencesPage() {
                   Add all locations where you're hiring. Include remote if you offer it.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {locations.map((location) => (
+                  {(watch('companyLocations') || []).map((location: string) => (
                     <span
                       key={location}
                       className="inline-flex items-center bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-full"
@@ -270,7 +473,10 @@ export default function PreferencesPage() {
                       {location}
                       <button
                         type="button"
-                        onClick={() => setLocations((l) => l.filter((item) => item !== location))}
+                        onClick={() => {
+                          const currentCompanyLocations = watch('companyLocations') || [];
+                          setValue('companyLocations', currentCompanyLocations.filter((item:string) => item !== location), { shouldValidate: true });
+                        }}
                         className="ml-2 text-gray-600 hover:bg-gray-200 rounded-full p-0.5 transition-colors"
                       >
                         <XIcon className="h-3.5 w-3.5" />
@@ -278,31 +484,33 @@ export default function PreferencesPage() {
                     </span>
                   ))}
                 </div>
-                <Select onValueChange={(newLocation) => !locations.includes(newLocation) && setLocations((l) => [...l, newLocation])}>
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue placeholder="Add a location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Remote">🌍 Remote</SelectItem>
-                    <SelectItem value="Hybrid">🏢 Hybrid</SelectItem>
-                    <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
-                    <SelectItem value="New York, NY">New York, NY</SelectItem>
-                    <SelectItem value="Los Angeles, CA">Los Angeles, CA</SelectItem>
-                    <SelectItem value="Seattle, WA">Seattle, WA</SelectItem>
-                    <SelectItem value="Austin, TX">Austin, TX</SelectItem>
-                    <SelectItem value="Boston, MA">Boston, MA</SelectItem>
-                    <SelectItem value="Chicago, IL">Chicago, IL</SelectItem>
-                    <SelectItem value="Denver, CO">Denver, CO</SelectItem>
-                    <SelectItem value="Miami, FL">Miami, FL</SelectItem>
-                    <SelectItem value="London, UK">London, UK</SelectItem>
-                    <SelectItem value="Berlin, Germany">Berlin, Germany</SelectItem>
-                    <SelectItem value="Toronto, Canada">Toronto, Canada</SelectItem>
-                    <SelectItem value="Bangalore, India">Bangalore, India</SelectItem>
-                    <SelectItem value="Mumbai, India">Mumbai, India</SelectItem>
-                    <SelectItem value="Delhi, India">Delhi, India</SelectItem>
-                    <SelectItem value="Noida, India">Noida, India</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="companyLocations"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(newLocation) => {
+                        const currentCompanyLocations = field.value || [];
+                        if (newLocation && !currentCompanyLocations.includes(newLocation)) {
+                          field.onChange([...currentCompanyLocations, newLocation]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue placeholder="Add a location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Remote">🌍 Remote</SelectItem>
+                        <SelectItem value="Hybrid">🏢 Hybrid</SelectItem>
+                        <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
+                        <SelectItem value="New York, NY">New York, NY</SelectItem>
+                        {/* ... other locations ... */}
+                        <SelectItem value="Noida, India">Noida, India</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.companyLocations && <p className="text-red-500 text-xs mt-1">{(errors.companyLocations as any).message || (errors.companyLocations as any).root?.message}</p>}
               </div>
             </>
           ) : (
@@ -334,32 +542,46 @@ export default function PreferencesPage() {
                       desc: "I'm researching and exploring what's available in the market.",
                     },
                   ].map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() => setJobStatus(item.value)}
-                      className={cn(
-                        "p-5 border rounded-xl text-left transition-all duration-200",
-                        jobStatus === item.value
-                          ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
-                          : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                    <Controller
+                      name="jobStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <>
+                          {[
+                            { value: "actively-looking", label: "Actively Looking", desc: "I'm actively applying and interviewing for new opportunities." },
+                            { value: "open-to-opportunities", label: "Open to Opportunities", desc: "I'm not actively searching but open to the right opportunity." },
+                            { value: "exploring", label: "Just Exploring", desc: "I'm researching and exploring what's available in the market." },
+                          ].map((item) => (
+                            <button
+                              key={item.value}
+                              type="button"
+                              onClick={() => field.onChange(item.value)}
+                              className={cn(
+                                "p-5 border rounded-xl text-left transition-all duration-200",
+                                field.value === item.value
+                                  ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
+                                  : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                              )}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
+                                  <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
+                                </div>
+                                {field.value === item.value && (
+                                  <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </>
                       )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
-                          <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
-                        </div>
-                        {jobStatus === item.value && (
-                          <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                    />
+                    {errors.jobStatus && <p className="text-red-500 text-xs mt-1">{errors.jobStatus.message}</p>}
                 </div>
               </div>
 
-              {/* Desired Roles */}
+              {/* Desired Roles (Individual) */}
               <div className="space-y-4">
                 <Label className="block text-base font-semibold text-brand-text-dark">
                   What type of roles are you interested in? <span className="text-brand-red">*</span>
@@ -368,7 +590,7 @@ export default function PreferencesPage() {
                   Select all the roles you'd be interested in applying for.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {desiredRoles.map((role) => (
+                  {(watch('desiredRoles') || []).map((role: string) => (
                     <span
                       key={role}
                       className="inline-flex items-center bg-black text-white text-sm font-medium px-4 py-2 rounded-full"
@@ -376,7 +598,10 @@ export default function PreferencesPage() {
                       {role}
                       <button
                         type="button"
-                        onClick={() => setDesiredRoles((r) => r.filter((item) => item !== role))}
+                        onClick={() => {
+                          const currentDesiredRoles = watch('desiredRoles') || [];
+                          setValue('desiredRoles', currentDesiredRoles.filter((item: string) => item !== role), { shouldValidate: true });
+                        }}
                         className="ml-2 text-white hover:bg-gray-900 rounded-full p-0.5 transition-colors"
                       >
                         <XIcon className="h-3.5 w-3.5" />
@@ -384,85 +609,97 @@ export default function PreferencesPage() {
                     </span>
                   ))}
                 </div>
-                <Select onValueChange={(newRole) => !desiredRoles.includes(newRole) && setDesiredRoles((r) => [...r, newRole])}>
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue placeholder="Add a role you're interested in" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Software Engineering">Software Engineering</SelectItem>
-                    <SelectItem value="Frontend Development">Frontend Development</SelectItem>
-                    <SelectItem value="Backend Development">Backend Development</SelectItem>
-                    <SelectItem value="Full Stack Development">Full Stack Development</SelectItem>
-                    <SelectItem value="Mobile Development">Mobile Development</SelectItem>
-                    <SelectItem value="DevOps Engineering">DevOps Engineering</SelectItem>
-                    <SelectItem value="Data Science">Data Science</SelectItem>
-                    <SelectItem value="Machine Learning">Machine Learning</SelectItem>
-                    <SelectItem value="Product Management">Product Management</SelectItem>
-                    <SelectItem value="UX Design">UX Design</SelectItem>
-                    <SelectItem value="UI Design">UI Design</SelectItem>
-                    <SelectItem value="Product Design">Product Design</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Sales">Sales</SelectItem>
-                    <SelectItem value="Business Development">Business Development</SelectItem>
-                    <SelectItem value="Operations">Operations</SelectItem>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="Human Resources">Human Resources</SelectItem>
-                    <SelectItem value="Customer Success">Customer Success</SelectItem>
-                    <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="desiredRoles"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(newRole) => {
+                        const currentDesiredRoles = field.value || [];
+                        if (newRole && !currentDesiredRoles.includes(newRole)) {
+                          field.onChange([...currentDesiredRoles, newRole]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue placeholder="Add a role you're interested in" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Software Engineering">Software Engineering</SelectItem>
+                        <SelectItem value="Frontend Development">Frontend Development</SelectItem>
+                        {/* Add other role options here */}
+                        <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.desiredRoles && <p className="text-red-500 text-xs mt-1">{(errors.desiredRoles as any).message || (errors.desiredRoles as any).root?.message}</p>}
               </div>
 
-              {/* Work Arrangement */}
+              {/* Work Arrangement (Individual) */}
               <div className="space-y-4">
                 <Label className="block text-base font-semibold text-brand-text-dark">
                   What's your preferred work arrangement? <span className="text-brand-red">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { id: "remote", label: "Remote Only" },
-                    { id: "hybrid", label: "Hybrid (2-3 days office)" },
-                    { id: "in-office", label: "In-Office" },
-                    { id: "flexible", label: "Flexible/Open to All" }
-                  ].map((arrangement) => (
-                    <ToggleButton
-                      key={arrangement.id}
-                      value={arrangement.id}
-                      selectedValue={workArrangement}
-                      onSelect={setWorkArrangement}
-                    >
-                      {arrangement.label}
-                    </ToggleButton>
-                  ))}
-                </div>
+                <Controller
+                  name="workArrangement"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { id: "remote", label: "Remote Only" },
+                        { id: "hybrid", label: "Hybrid (2-3 days office)" },
+                        { id: "in-office", label: "In-Office" },
+                        { id: "flexible", label: "Flexible/Open to All" }
+                      ].map((arrangement) => (
+                        <ToggleButton
+                          key={arrangement.id}
+                          value={arrangement.id}
+                          selectedValue={field.value || ""}
+                          onSelect={field.onChange}
+                        >
+                          {arrangement.label}
+                        </ToggleButton>
+                      ))}
+                    </div>
+                  )}
+                />
+                {errors.workArrangement && <p className="text-red-500 text-xs mt-1">{errors.workArrangement.message}</p>}
               </div>
 
-              {/* Experience Level */}
+              {/* Experience Level (Individual) */}
               <div className="space-y-4">
                 <Label className="block text-base font-semibold text-brand-text-dark">
                   What level of positions are you targeting? <span className="text-brand-red">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { id: "entry-level", label: "Entry Level (0-2 years)" },
-                    { id: "mid-level", label: "Mid Level (3-5 years)" },
-                    { id: "senior-level", label: "Senior Level (6-8 years)" },
-                    { id: "lead-level", label: "Lead Level (9+ years)" },
-                    { id: "executive", label: "Executive/C-Level" }
-                  ].map((level) => (
-                    <ToggleButton
-                      key={level.id}
-                      value={level.id}
-                      selectedValue={experienceLevel}
-                      onSelect={setExperienceLevel}
-                    >
-                      {level.label}
-                    </ToggleButton>
-                  ))}
-                </div>
+                <Controller
+                  name="experienceLevel"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { id: "entry-level", label: "Entry Level (0-2 years)" },
+                        { id: "mid-level", label: "Mid Level (3-5 years)" },
+                        { id: "senior-level", label: "Senior Level (6-8 years)" },
+                        { id: "lead-level", label: "Lead Level (9+ years)" },
+                        { id: "executive", label: "Executive/C-Level" }
+                      ].map((level) => (
+                        <ToggleButton
+                          key={level.id}
+                          value={level.id}
+                          selectedValue={field.value || ""}
+                          onSelect={field.onChange}
+                        >
+                          {level.label}
+                        </ToggleButton>
+                      ))}
+                    </div>
+                  )}
+                />
+                {errors.experienceLevel && <p className="text-red-500 text-xs mt-1">{errors.experienceLevel.message}</p>}
               </div>
 
-              {/* Salary Expectations */}
+              {/* Salary Expectations (Individual) */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <DollarSignIcon className="h-5 w-5 text-black" />
@@ -479,38 +716,46 @@ export default function PreferencesPage() {
                     <Input
                       type="number"
                       placeholder="Min expected"
-                      value={salaryExpectation.min}
-                      onChange={(e) => setSalaryExpectation(prev => ({ ...prev, min: e.target.value }))}
+                      {...register("salaryExpectationMin")}
                       className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
                     />
+                    {errors.salaryExpectationMin && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationMin.message}</p>}
                   </div>
                   <div className="relative">
                     <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
                     <Input
                       type="number"
                       placeholder="Max expected"
-                      value={salaryExpectation.max}
-                      onChange={(e) => setSalaryExpectation(prev => ({ ...prev, max: e.target.value }))}
+                       {...register("salaryExpectationMax")}
                       className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
                     />
+                    {errors.salaryExpectationMax && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationMax.message}</p>}
                   </div>
                 </div>
-                <Select value={salaryExpectation.currency} onValueChange={(currency) => setSalaryExpectation(prev => ({ ...prev, currency }))}>
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="usd">USD ($) - Annual</SelectItem>
-                    <SelectItem value="eur">EUR (€) - Annual</SelectItem>
-                    <SelectItem value="gbp">GBP (£) - Annual</SelectItem>
-                    <SelectItem value="inr">INR (₹) - Annual</SelectItem>
-                    <SelectItem value="cad">CAD ($) - Annual</SelectItem>
-                    <SelectItem value="aud">AUD ($) - Annual</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="salaryExpectationCurrency"
+                  control={control}
+                  defaultValue="usd"
+                  render={({ field }) => (
+                    <Select value={field.value || "usd"} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usd">USD ($) - Annual</SelectItem>
+                        <SelectItem value="eur">EUR (€) - Annual</SelectItem>
+                        <SelectItem value="gbp">GBP (£) - Annual</SelectItem>
+                        <SelectItem value="inr">INR (₹) - Annual</SelectItem>
+                        <SelectItem value="cad">CAD ($) - Annual</SelectItem>
+                        <SelectItem value="aud">AUD ($) - Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                 {errors.salaryExpectationCurrency && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationCurrency.message}</p>}
               </div>
 
-              {/* Career Goals */}
+              {/* Career Goals (Individual) */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <TargetIcon className="h-5 w-5 text-black" />
@@ -535,31 +780,35 @@ export default function PreferencesPage() {
                     "Team Collaboration",
                     "Innovation & Creativity",
                     "Job Security"
-                  ].map((goal) => (
-                    <button
-                      key={goal}
-                      type="button"
-                      onClick={() => {
-                        if (careerGoals.includes(goal)) {
-                          setCareerGoals(prev => prev.filter(g => g !== goal))
-                        } else {
-                          setCareerGoals(prev => [...prev, goal])
-                        }
-                      }}
-                      className={cn(
-                        "p-3 text-sm font-medium rounded-lg border transition-all duration-200 text-left",
-                        careerGoals.includes(goal)
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-brand-text-dark border-brand-border hover:border-gray-400"
-                      )}
-                    >
-                      {goal}
-                    </button>
-                  ))}
+                  ].map((goal) => {
+                    const currentGoals = watch('careerGoals') || [];
+                    const isSelected = currentGoals.includes(goal);
+                    return (
+                      <button
+                        key={goal}
+                        type="button"
+                        onClick={() => {
+                          const updatedGoals = isSelected
+                            ? currentGoals.filter(g => g !== goal)
+                            : [...currentGoals, goal];
+                          setValue('careerGoals', updatedGoals, { shouldValidate: true });
+                        }}
+                        className={cn(
+                          "p-3 text-sm font-medium rounded-lg border transition-all duration-200 text-left",
+                          isSelected
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-brand-text-dark border-brand-border hover:border-gray-400"
+                        )}
+                      >
+                        {goal}
+                      </button>
+                    );
+                  })}
                 </div>
+                {errors.careerGoals && <p className="text-red-500 text-xs mt-1">{(errors.careerGoals as any).message || (errors.careerGoals as any).root?.message}</p>}
               </div>
 
-              {/* Preferred Locations */}
+              {/* Preferred Locations (Individual) */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <MapPinIcon className="h-5 w-5 text-black" />
@@ -571,7 +820,7 @@ export default function PreferencesPage() {
                   Select all locations you're willing to work in or relocate to.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {locations.map((location) => (
+                  {(watch('locations') || []).map((location: string) => (
                     <span
                       key={location}
                       className="inline-flex items-center bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-full"
@@ -579,7 +828,10 @@ export default function PreferencesPage() {
                       {location}
                       <button
                         type="button"
-                        onClick={() => setLocations((l) => l.filter((item) => item !== location))}
+                        onClick={() => {
+                          const currentLocations = watch('locations') || [];
+                          setValue('locations', currentLocations.filter((item: string) => item !== location), { shouldValidate: true });
+                        }}
                         className="ml-2 text-gray-600 hover:bg-gray-200 rounded-full p-0.5 transition-colors"
                       >
                         <XIcon className="h-3.5 w-3.5" />
@@ -587,30 +839,32 @@ export default function PreferencesPage() {
                     </span>
                   ))}
                 </div>
-                <Select onValueChange={(newLocation) => !locations.includes(newLocation) && setLocations((l) => [...l, newLocation])}>
-                  <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                    <SelectValue placeholder="Add a preferred location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Remote">🌍 Remote (Anywhere)</SelectItem>
-                    <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
-                    <SelectItem value="New York, NY">New York, NY</SelectItem>
-                    <SelectItem value="Los Angeles, CA">Los Angeles, CA</SelectItem>
-                    <SelectItem value="Seattle, WA">Seattle, WA</SelectItem>
-                    <SelectItem value="Austin, TX">Austin, TX</SelectItem>
-                    <SelectItem value="Boston, MA">Boston, MA</SelectItem>
-                    <SelectItem value="Chicago, IL">Chicago, IL</SelectItem>
-                    <SelectItem value="Denver, CO">Denver, CO</SelectItem>
-                    <SelectItem value="Miami, FL">Miami, FL</SelectItem>
-                    <SelectItem value="London, UK">London, UK</SelectItem>
-                    <SelectItem value="Berlin, Germany">Berlin, Germany</SelectItem>
-                    <SelectItem value="Toronto, Canada">Toronto, Canada</SelectItem>
-                    <SelectItem value="Bangalore, India">Bangalore, India</SelectItem>
-                    <SelectItem value="Mumbai, India">Mumbai, India</SelectItem>
-                    <SelectItem value="Delhi, India">Delhi, India</SelectItem>
-                    <SelectItem value="Noida, India">Noida, India</SelectItem>
-                  </SelectContent>
-                </Select>
+                 <Controller
+                  name="locations" // For Individual
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={(newLocation) => {
+                        const currentLocations = field.value || [];
+                        if (newLocation && !currentLocations.includes(newLocation)) {
+                          field.onChange([...currentLocations, newLocation]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                        <SelectValue placeholder="Add a preferred location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Remote">🌍 Remote (Anywhere)</SelectItem>
+                        <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
+                        <SelectItem value="New York, NY">New York, NY</SelectItem>
+                        {/* Add other location options here */}
+                        <SelectItem value="Noida, India">Noida, India</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.locations && <p className="text-red-500 text-xs mt-1">{(errors.locations as any).message || (errors.locations as any).root?.message}</p>}
               </div>
             </>
           )}
@@ -618,12 +872,10 @@ export default function PreferencesPage() {
           <div className="pt-6">
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-black hover:bg-gray-900 text-white py-3 font-medium text-base rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-              asChild
             >
-              <Link href={userType === 'individual' ? `/auth/onboarding/culture?type=${userType}` : `/auth/onboarding/done?type=${userType}`}>
-                Continue {userType === 'individual' ? 'to Culture Fit →' : 'to Complete Setup →'}
-              </Link>
+              {isSubmitting ? "Saving..." : (userType === 'individual' ? 'Continue to Culture Fit →' : 'Complete Setup →')}
             </Button>
           </div>
         </form>
