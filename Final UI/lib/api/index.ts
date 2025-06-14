@@ -7,21 +7,38 @@ interface RequestOptions extends RequestInit {
 async function request<T>(endpoint: string, options?: RequestOptions): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  // Add these console logs for debugging:
   console.log('[API Service] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
   console.log('[API Service] Attempting to fetch full URL:', url);
 
-  const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+  const defaultHeaders: HeadersInit = {}; // Initialize empty
+
+  // Conditionally set Content-Type for JSON, but not for FormData
+  if (!(options?.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+
+  // Prepare body: stringify if it's an object and not FormData
+  let processedBody: BodyInit | null | undefined = options?.body;
+  if (options?.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    processedBody = JSON.stringify(options.body);
+  } else {
+    processedBody = options?.body; // Use as is if FormData, string, null, undefined, etc.
+  }
 
   const config: RequestInit = {
-    ...options,
-    headers: {
+    method: options?.method || 'GET', // Ensure method is set, default to GET
+    ...options, // Spread options first
+    headers: { // Then override headers, ensuring defaultHeaders are applied correctly
       ...defaultHeaders,
       ...options?.headers,
     },
+    body: processedBody, // Use the processed body
   };
+
+  // Remove body from config if method is GET or HEAD as they cannot have a body
+  if (config.method === 'GET' || config.method === 'HEAD') {
+    delete config.body;
+  }
 
   try {
     const response = await fetch(url, config);
@@ -31,11 +48,12 @@ async function request<T>(endpoint: string, options?: RequestOptions): Promise<T
       try {
         errorData = await response.json();
       } catch (e) {
-        errorData = { message: `HTTP error! status: ${response.status} ${response.statusText}` };
+        // If response is not JSON, use status text
+        errorData = { message: response.statusText || `HTTP error! status: ${response.status}` };
       }
       const error: any = new Error(errorData?.message || `HTTP error! status: ${response.status} ${response.statusText}`);
       error.status = response.status;
-      error.data = errorData;
+      error.data = errorData; // Attach original error data if available
       throw error;
     }
 
@@ -43,11 +61,24 @@ async function request<T>(endpoint: string, options?: RequestOptions): Promise<T
       return undefined as T;
     }
 
-    return response.json() as Promise<T>;
+    // Check if response is JSON before trying to parse
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json() as Promise<T>;
+    }
+    // Handle non-JSON responses, e.g. plain text or empty
+    // For this project, assuming most actual data responses are JSON or empty.
+    // If plain text is expected for some endpoints, this might need more specific handling.
+    return response.text() as unknown as Promise<T>;
 
   } catch (error) {
     console.error('API Service Request Error:', error);
-    throw error; // Re-throw to be caught by calling function
+    // Ensure the re-thrown error is an actual Error object for consistent handling upstream
+    if (error instanceof Error) {
+        throw error;
+    } else {
+        throw new Error(String(error) || 'An unknown API error occurred');
+    }
   }
 }
 
@@ -56,19 +87,19 @@ async function request<T>(endpoint: string, options?: RequestOptions): Promise<T
 export const registerUser = async (userData: any) => { // TODO: Define UserData type
   return request<any>('/auth/register', { // TODO: Define RegisterResponse type
     method: 'POST',
-    body: JSON.stringify(userData),
+    body: userData, // Pass object directly, request function will stringify
   });
 };
 
 export const loginUser = async (credentials: any) => { // TODO: Define Credentials type
   return request<any>('/auth/login', { // TODO: Define LoginResponse type (e.g., { token: string; user: User })
     method: 'POST',
-    body: JSON.stringify(credentials),
+    body: credentials, // Pass object directly
   });
 };
 
 export const getCurrentUser = async (token: string) => {
-  return request<any>('/users/me', { // TODO: Define UserProfile type
+  return request<any>('/users/me', {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -76,77 +107,42 @@ export const getCurrentUser = async (token: string) => {
   });
 };
 
-/**
- * @typedef {object} UserProfileData
- * @property {string} [full_name] - User's full name (for individuals).
- * @property {string} [company_name] - Company's name (for companies).
- * @property {string} [industry] - Company's industry (for companies).
- * @property {string} [company_size] - Company's size (for companies).
- * @property {string} [location] - User or company location.
- * @property {string} [professional_title] - User's professional title (for individuals).
- * @property {string} [years_of_experience] - User's years of experience (for individuals).
- * @property {string} [job_function] - User's job function (for individuals).
- * @property {string} [key_skills] - User's key skills, comma-separated (for individuals).
- * @property {string} [education_level] - User's education level (for individuals).
- * @property {string} [field_of_study] - User's field of study (for individuals).
- * @property {string} [institution] - User's educational institution (for individuals).
- * @property {string} [linkedin_url] - LinkedIn profile URL.
- * @property {string} [website_url] - Personal or company website URL.
- * @property {string} [bio] - User's summary or company's description.
- * @property {string} [company_type] - Type of company (for companies).
- * @property {string} [tech_stack] - Company's tech stack, comma-separated (for companies).
- */
-
-/**
- * Updates the authenticated user's profile.
- * This can include fields for the 'users' table and 'user_profiles' table.
- * @param {UserProfileData} profileData - The data to update.
- * @param {string} token - The JWT token for authentication.
- * @returns {Promise<any>} The response from the server (e.g., a success message).
- *                        // TODO: Define a specific UpdateProfileResponse type
- */
-export const updateUserProfile = async (profileData: any, token: string) => { // TODO: Replace 'any' with UserProfileData type
-  return request<any>('/users/profile', { // TODO: Define UpdateProfileResponse type
+export const updateUserProfile = async (profileData: any, token: string) => {
+  return request<any>('/users/profile', {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(profileData),
+    body: profileData, // Pass object directly
   });
 };
 
-export const updateUserPreferences = async (preferencesData: any, token: string) => { // TODO: Define PreferencesData type
-  return request<any>('/users/preferences', { // TODO: Define UpdatePreferencesResponse type
+export const updateUserPreferences = async (preferencesData: any, token: string) => {
+  return request<any>('/users/preferences', {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(preferencesData),
+    body: preferencesData, // Pass object directly
   });
 };
 
-export const updateUserCulture = async (cultureData: any, token: string) => { // TODO: Define CultureData type (ideally CultureFormValues from the page)
-  return request<any>('/users/culture', { // TODO: Define UpdateCultureResponse type
+export const updateUserCulture = async (cultureData: any, token: string) => {
+  return request<any>('/users/culture', {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(cultureData),
+    body: cultureData, // Pass object directly
   });
 };
 
-// IMPORTANT: The generic `request` function currently sets 'Content-Type': 'application/json'
-// and JSON.stringifies the body by default. This WILL NOT WORK for FormData.
-// The `request` function needs to be modified to detect if the body is FormData,
-// and if so, not stringify it and not set Content-Type, allowing the browser to set it.
-// This function is written AS IF `request` handles FormData correctly.
 export const uploadUserResume = async (formData: FormData, token: string) => {
-  return request<any>('/users/resume', { // TODO: Define specific response type e.g., { message: string, resumeUrl?: string }
+  return request<any>('/users/resume', {
     method: 'POST',
     headers: {
       // Content-Type is deliberately omitted here for FormData.
-      // The browser will set it to 'multipart/form-data' with the correct boundary.
-      // However, the generic `request` function MUST be updated to respect this.
+      // The modified `request` function will handle this.
       'Authorization': `Bearer ${token}`,
     },
     body: formData, // Pass FormData directly
@@ -154,12 +150,11 @@ export const uploadUserResume = async (formData: FormData, token: string) => {
 };
 
 export const markUserAsVerified = async (token: string) => {
-  return request<any>('/auth/mark-as-verified', { // TODO: Define specific response type, e.g., { message: string, user: { id: string, is_phone_verified: boolean } }
+  return request<any>('/auth/mark-as-verified', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      // Content-Type will be application/json by default from request helper, which is fine for an empty/no body POST
     },
-    // No body needed if the backend uses the authenticated user ID and the action is implicit
+    // No body needed for this specific request if backend uses token for user ID
   });
 };
