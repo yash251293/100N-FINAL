@@ -87,19 +87,31 @@ const ImportanceButtonGroup: React.FC<ImportanceButtonGroupProps> = ({ selectedV
 )
 
 export default function CulturePage() {
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Keep for potential query param fallbacks if needed, but prioritize context
   const router = useRouter();
-  const { user, token, refetchUser } = useAuth();
-  const clientUserType = searchParams.get('type') || user?.user_type || 'individual';
+  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth(); // Added isAuthLoading
 
+  // Loading and Guard State
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
+  }
 
-  // This page is intended for individuals. Redirect if not.
-  useEffect(() => {
-    if (user && user.user_type !== 'individual') {
-      toast.error("This page is for individual users only.");
-      router.push('/feed'); // Or some other appropriate page
+  const contextUserType = user?.user_type;
+
+  if (!contextUserType || contextUserType !== 'individual') {
+    // This page is strictly for individuals.
+    // If context is loaded and user is not 'individual' (or no user from context)
+    toast.error("Access denied: This page is for individual users only.");
+    // Redirect: if user exists but is wrong type, go to feed. If no user at all, go to login.
+    if (typeof window !== 'undefined') { // Ensure router.push is only called client-side
+        router.push(user ? '/feed' : '/auth/login');
     }
-  }, [user, router]);
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+  }
+  // At this point, we are sure the user is 'individual' based on context.
+  const finalUserType = 'individual'; // This page is only for individuals
+
+  // The old useEffect for redirect is removed due to the guard above.
 
   const culturePrefsInitial = [
     { id: "say-in-work", label: "Having autonomy in how I work", selected: true },
@@ -146,21 +158,14 @@ export default function CulturePage() {
         await refetchUser(); // Refetch user data to update context
       }
 
-      router.push(`/auth/onboarding/resume?type=${clientUserType}`);
+      router.push(`/auth/onboarding/resume?type=${finalUserType}`); // Use finalUserType
 
     } catch (error: any) {
       toast.error("Failed to save culture preferences: " + (error.data?.message || error.message));
     }
   };
 
-  if (user && user.user_type !== 'individual' && clientUserType !== 'individual') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>This page is for individual users only. Redirecting...</p>
-      </div>
-    );
-  }
-
+  // The conditional rendering block for non-individual users is removed due to the guard above.
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">

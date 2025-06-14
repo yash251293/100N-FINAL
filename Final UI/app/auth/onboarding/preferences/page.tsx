@@ -86,14 +86,10 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({ value, selectedValue, onSel
 )
 
 export default function PreferencesPage() {
-  const searchParams = useSearchParams()
-  // const userType = searchParams.get('type') || 'company' // Will be derived from useAuth
-
-  const { user, token, refetchUser } = useAuth(); // Added refetchUser
-  const router = useRouter(); // Added useRouter
-
-  // Determine userType from authenticated user
-  const userType = user?.user_type || (searchParams.get('type') as 'individual' | 'company') || 'company';
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth(); // Updated useAuth
+  const queryUserType = searchParams.get('type') as 'individual' | 'company' | null;
 
   // State for company salary UI (controlled inputs) - RHF will still hold the source of truth via register/controller
   const [companySalary, setCompanySalary] = useState({ min: "", max: "", currency: "usd" });
@@ -192,6 +188,91 @@ export default function PreferencesPage() {
   // as 'companyLocations' and 'locations' (individual) are directly managed by RHF.
   // UI components for displaying selected locations will use `watch()` from RHF.
 
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
+  }
+
+  // Determine userType for page logic, defaulting if user context isn't fully ready or param is missing
+  // Prefer user.user_type from context once loaded.
+  const finalUserType = user?.user_type || queryUserType || 'individual';
+
+  if (!user && !queryUserType) {
+    toast.error("User information not available or user type not specified. Redirecting to login.");
+    if (typeof window !== 'undefined') {
+        router.push('/auth/login');
+    }
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+  }
+  // The existing 'userType' variable in the original code was used for schema and form rendering logic.
+  // We'll replace its usages with 'finalUserType'.
+  // The useForm hook itself is called unconditionally further down. Its resolver will use the `finalUserType`.
+  const currentSchema = finalUserType === 'company' ? companyPreferencesSchema : individualPreferencesSchema; // Define currentSchema using finalUserType
+
+  // Form setup
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch, setValue } = useForm<PreferencesFormValues>({
+    resolver: zodResolver(currentSchema), // Use the re-evaluated currentSchema
+    defaultValues: {
+      jobStatus: "actively-looking",
+      desiredRoles: ["Software Engineering"],
+      workArrangement: "hybrid",
+      experienceLevel: "mid-level",
+      salaryExpectationCurrency: "usd",
+      careerGoals: [],
+      locations: ["Noida"],
+      hiringStatus: "actively-hiring",
+      employmentType: "full-time",
+      roles: ["Software Engineering"],
+      companyLocations: ["Noida"],
+      hiringSalaryCurrency: "usd",
+    },
+  });
+
+  const onSubmit: SubmitHandler<PreferencesFormValues> = async (data) => {
+    if (!token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+    let payload: Partial<PreferencesFormValues> = {};
+    if (finalUserType === 'individual') {
+      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any;
+      payload = {
+        jobStatus: individualData.jobStatus,
+        desiredRoles: individualData.desiredRoles,
+        workArrangement: individualData.workArrangement,
+        experienceLevel: individualData.experienceLevel,
+        salaryExpectationMin: individualData.salaryExpectationMin,
+        salaryExpectationMax: individualData.salaryExpectationMax,
+        salaryExpectationCurrency: individualData.salaryExpectationCurrency,
+        careerGoals: individualData.careerGoals,
+        locations: individualData.locations,
+      };
+    } else if (finalUserType === 'company') {
+      const { locations, salaryExpectationMin, salaryExpectationMax, salaryExpectationCurrency, careerGoals, jobStatus, desiredRoles, workArrangement, experienceLevel, ...companyData } = data as any;
+      payload = {
+        hiringStatus: companyData.hiringStatus,
+        employmentType: companyData.employmentType,
+        roles: companyData.roles,
+        companyLocations: companyData.companyLocations,
+        hiringSalaryMin: companyData.hiringSalaryMin,
+        hiringSalaryMax: companyData.hiringSalaryMax,
+        hiringSalaryCurrency: companyData.hiringSalaryCurrency,
+      };
+    }
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+    try {
+      await updateUserPreferences(payload, token);
+      toast.success("Preferences saved successfully!");
+      await refetchUser();
+      if (finalUserType === 'individual') {
+        router.push(`/auth/onboarding/culture?type=${finalUserType}`);
+      } else {
+        router.push(`/auth/onboarding/done?type=${finalUserType}`);
+      }
+    } catch (error: any) {
+      toast.error("Failed to save preferences: " + (error.data?.message || error.message));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
@@ -199,13 +280,13 @@ export default function PreferencesPage() {
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-brand-text-dark mb-3">
-            {userType === 'company'
+            {finalUserType === 'company'
               ? 'What are you looking to hire?'
               : 'What are your job preferences?'
             }
           </h1>
           <p className="text-brand-text-medium leading-relaxed">
-            {userType === 'company'
+            {finalUserType === 'company'
               ? 'Help us understand your hiring needs to match you with the perfect candidates.'
               : 'Tell us about your career goals and preferences to find the perfect opportunities.'
             }
@@ -213,7 +294,7 @@ export default function PreferencesPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
-          {userType === 'company' ? (
+          {finalUserType === 'company' ? (
             // Company Preferences
             <>
               {/* Hiring Status */}
@@ -875,7 +956,7 @@ export default function PreferencesPage() {
               disabled={isSubmitting}
               className="w-full bg-black hover:bg-gray-900 text-white py-3 font-medium text-base rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
             >
-              {isSubmitting ? "Saving..." : (userType === 'individual' ? 'Continue to Culture Fit →' : 'Complete Setup →')}
+              {isSubmitting ? "Saving..." : (finalUserType === 'individual' ? 'Continue to Culture Fit →' : 'Complete Setup →')}
             </Button>
           </div>
         </form>

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');    // Requires npm install
 const jwt = require('jsonwebtoken'); // Requires npm install
 const db = require('../db');         // Assumes db/index.js and pg (requires npm install)
 const router = express.Router();
+const authMiddleware = require('../middleware/authMiddleware'); // Added authMiddleware import
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -81,6 +82,39 @@ router.post('/register', async (req, res) => {
          return res.status(409).json({ message: 'User with this email already exists (constraint error).' });
     }
     res.status(500).json({ message: 'Server error during registration.' });
+  }
+});
+
+// POST /api/auth/mark-as-verified - Mark user's contact (phone) as verified
+// Protected route: Requires authentication
+router.post('/mark-as-verified', authMiddleware, async (req, res, next) => {
+  const userId = req.user.userId;
+
+  // Potentially, the request body could indicate what was verified, e.g., { method: 'phone' }
+  // For now, we assume it's phone verification as per the plan.
+
+  try {
+    const updateQuery = `
+      UPDATE users
+      SET is_phone_verified = TRUE, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING id, email, is_phone_verified, user_type, full_name, company_name;
+    `; // Added more fields to RETURNING for context if needed by frontend
+    const { rows } = await db.query(updateQuery, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User not found to mark as verified.' });
+    }
+
+    res.status(200).json({
+      message: 'User contact method marked as verified successfully.',
+      user: rows[0] // Contains id, email, is_phone_verified, and other returned fields
+    });
+  } catch (error) {
+    console.error('Error marking user as verified:', error);
+    const err = new Error('Server error while marking user as verified.');
+    // err.statusCode = 500; // Global error handler might set this.
+    next(err); // Pass to global error handler
   }
 });
 

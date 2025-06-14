@@ -134,3 +134,32 @@ export const updateUserCulture = async (cultureData: any, token: string) => { //
     body: JSON.stringify(cultureData),
   });
 };
+
+// IMPORTANT: The generic `request` function currently sets 'Content-Type': 'application/json'
+// and JSON.stringifies the body by default. This WILL NOT WORK for FormData.
+// The `request` function needs to be modified to detect if the body is FormData,
+// and if so, not stringify it and not set Content-Type, allowing the browser to set it.
+// This function is written AS IF `request` handles FormData correctly.
+export const uploadUserResume = async (formData: FormData, token: string) => {
+  return request<any>('/users/resume', { // TODO: Define specific response type e.g., { message: string, resumeUrl?: string }
+    method: 'POST',
+    headers: {
+      // Content-Type is deliberately omitted here for FormData.
+      // The browser will set it to 'multipart/form-data' with the correct boundary.
+      // However, the generic `request` function MUST be updated to respect this.
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData, // Pass FormData directly
+  });
+};
+
+export const markUserAsVerified = async (token: string) => {
+  return request<any>('/auth/mark-as-verified', { // TODO: Define specific response type, e.g., { message: string, user: { id: string, is_phone_verified: boolean } }
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // Content-Type will be application/json by default from request helper, which is fine for an empty/no body POST
+    },
+    // No body needed if the backend uses the authenticated user ID and the action is implicit
+  });
+};

@@ -2,6 +2,52 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware'); // Assumes authMiddleware.js is in ../middleware
 const db = require('../db'); // Assumes db/index.js exports a query function or pool
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs'); // For ensuring directory exists
+
+// Multer setup for resume uploads
+const resumeUploadDir = path.join(__dirname, '..', 'uploads', 'resumes'); // Path relative to this routes file to project_root/uploads/resumes
+
+// Ensure upload directory exists
+if (!fs.existsSync(resumeUploadDir)) {
+  fs.mkdirSync(resumeUploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, resumeUploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Ensure req.user is available from authMiddleware
+    const userId = req.user?.userId;
+    if (!userId) {
+      // This error will be caught by the custom multer error handler for the route
+      return cb(new Error('User not authenticated for filename generation'), '');
+    }
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const extension = path.extname(file.originalname);
+    cb(null, `user-${userId}-resume-${uniqueSuffix}${extension}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = /pdf|doc|docx|rtf|txt/;
+    // Check mimetype and originalname extension
+    const mimetypeIsValid = allowedTypes.test(file.mimetype);
+    const extnameIsValid = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetypeIsValid && extnameIsValid) {
+      return cb(null, true);
+    }
+    // This error will be caught by the custom multer error handler for the route
+    cb(new Error('File type not allowed. Only PDF, DOC, DOCX, RTF, TXT are permitted.'), false);
+  }
+});
+
 
 // GET /api/users/me - Get current user's profile
 // Protected route: Requires authentication
@@ -286,5 +332,161 @@ router.put('/preferences', authMiddleware, async (req, res, next) => { // Added 
     next(err); // Use next(err) to pass to global error handler
   }
 });
+
+// PUT /api/users/culture - Update current individual user's culture preferences
+// Protected route: Requires authentication
+router.put('/culture', authMiddleware, async (req, res, next) => {
+  const userId = req.user.userId;
+  const userType = req.user.userType;
+
+  if (userType !== 'individual') {
+    return res.status(403).json({ message: 'Forbidden: This feature is only for individual users.' });
+  }
+
+  const {
+    culturePrefs, // Array of strings
+    remotePolicyImportance,
+    quietOfficeImportance,
+    nextJobDescription
+  } = req.body;
+
+  const cultureFieldsToUpdate = {};
+
+  // Basic validation: Check if at least one field is provided
+  let hasDataToUpdate = false;
+  if (culturePrefs !== undefined) {
+    cultureFieldsToUpdate.culture_preferences = culturePrefs;
+    hasDataToUpdate = true;
+  }
+  if (remotePolicyImportance !== undefined) {
+    cultureFieldsToUpdate.remote_policy_importance = remotePolicyImportance;
+    hasDataToUpdate = true;
+  }
+  if (quietOfficeImportance !== undefined) {
+    cultureFieldsToUpdate.quiet_office_importance = quietOfficeImportance;
+    hasDataToUpdate = true;
+  }
+  if (nextJobDescription !== undefined) {
+    cultureFieldsToUpdate.ideal_next_job_description = nextJobDescription;
+    hasDataToUpdate = true;
+  }
+
+  if (!hasDataToUpdate) {
+    return res.status(400).json({ message: 'No culture preference data provided to update.' });
+  }
+
+  const setClauses = Object.keys(cultureFieldsToUpdate)
+    .map((key, index) => `"${key}" = $${index + 2}`)
+    .join(', ');
+  const values = Object.values(cultureFieldsToUpdate);
+
+  const updateQuery = `
+    UPDATE user_profiles
+    SET ${setClauses}, updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = $1
+    RETURNING *;
+  `;
+
+  try {
+    // Ensure user_profiles row exists before attempting to update
+    const userProfileCheck = await db.query('SELECT 1 FROM user_profiles WHERE user_id = $1', [userId]);
+    if (userProfileCheck.rows.length === 0) {
+        // If no profile exists, it's an issue. Preferences should ideally be part of a profile.
+        // Consider if an UPSERT or initial profile creation step was missed for this user.
+        // For now, returning 404 as the main /profile PUT handles creation/upsert.
+        return res.status(404).json({ message: 'User profile does not exist. Please complete initial profile setup before setting culture preferences.' });
+    }
+
+    const { rows } = await db.query(updateQuery, [userId, ...values]);
+    // rows.length check here might be redundant if userProfileCheck passes and user_id is from token,
+    // unless the user_id somehow became invalid between checks (highly unlikely).
+    // However, keeping it as a safeguard or if the profile could be deleted by another process.
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Failed to update culture preferences or user profile not found.' });
+    }
+    res.status(200).json({ message: 'Culture preferences updated successfully.', culture_info: rows[0] });
+  } catch (error) {
+    console.error('Error updating culture preferences:', error);
+    const err = new Error('Server error while updating culture preferences.');
+    err.statusCode = 500; // It's good practice to set a status code
+    next(err);
+  }
+});
+
+// POST /api/users/resume - Upload resume for individual user
+// Protected route: Requires authentication, handles single file upload named 'resume'
+router.post('/resume', authMiddleware, (req, res, next) => {
+  // Check user type after authMiddleware has run
+  if (req.user.userType !== 'individual') {
+    // Clean up the uploaded file if it exists, as it's an unauthorized attempt for this user type
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Error deleting file after user type mismatch:", err);
+      });
+    }
+    return res.status(403).json({ message: 'Forbidden: Resume upload is only for individual users.' });
+  }
+  // If userType is correct, proceed to multer upload
+  next();
+}, (req, res, next) => { // Intermediate step to handle multer processing and its specific errors
+  upload.single('resume')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred (e.g., file too large).
+      return res.status(400).json({ message: err.message });
+    } else if (err) {
+      // An unknown error occurred (e.g., file type not allowed from fileFilter, or auth error from filename storage function).
+      return res.status(400).json({ message: err.message });
+    }
+    // If no error, proceed to the main route handler
+    next();
+  });
+}, async (req, res, next) => { // 'resume' is the field name from FormData
+  const userId = req.user.userId;
+
+  if (!req.file) {
+    return res.status(400).json({ message: 'No resume file uploaded.' });
+  }
+
+  // Construct the file path relative to a base that might be served or known to the app
+  // For now, store a path relative to the 'uploads' dir, assuming 'uploads' is at project root.
+  // This might need adjustment based on how files are served or accessed later.
+  const resumeFilePath = path.join('resumes', req.file.filename).replace(/\\/g, '/'); // Normalize path separators to forward slashes
+
+
+  try {
+    const updateQuery = `
+      UPDATE user_profiles
+      SET resume_file_path = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $2
+      RETURNING resume_file_path;
+    `;
+    const { rows } = await db.query(updateQuery, [resumeFilePath, userId]);
+
+    if (rows.length === 0) {
+      // This implies user_profiles row might not exist.
+      // Clean up uploaded file as DB update failed
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Error deleting file after DB row not found:", err);
+      });
+      return res.status(404).json({ message: 'User profile not found to update resume path.' });
+    }
+
+    res.status(200).json({
+      message: 'Resume uploaded and profile updated successfully.',
+      filePath: resumeFilePath, // Send back the path
+      resume_info: rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating resume path in DB:', error);
+    // If DB update fails, try to delete the uploaded file to avoid orphans
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.error("Error deleting orphaned file after DB error:", err);
+    });
+    const err = new Error('Server error while saving resume information.');
+    // err.statusCode = 500; // Global error handler might set this.
+    next(err);
+  }
+});
+
 
 module.exports = router;
