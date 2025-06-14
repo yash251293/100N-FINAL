@@ -140,4 +140,17 @@ This phase focused on making the first data collection step of the onboarding fl
 7.  **Type Safety**.
 8.  **Testing**.
 9.  **Resolve `semver` Vulnerability (Optional/If Critical)**.
-```
+
+## Phase 8: Debugging Persistent Compilation Errors in `profile/page.tsx`
+
+1.  User reported the "CRITICAL ISSUE" from Phase 7 (duplicated code causing 'import'/'export' error in `Final UI/app/auth/onboarding/profile/page.tsx`) was resolved by AI (Jules) by removing the duplicated code block.
+2.  Subsequently, user reported a new error: "React has detected a change in the order of Hooks called by ProfilePage."
+3.  AI (Jules) diagnosed this as Hooks being called after conditional returns. AI refactored `Final UI/app/auth/onboarding/profile/page.tsx` to move all Hook calls (`useAuth`, `useRouter`, `useForm`, `useEffect`) to the top of the component, before conditional returns. This change was committed to branch `fix/onboarding-profile-hook-order`.
+4.  User then reported a syntax error: "Unexpected token `div`. Expected jsx identifier" pointing to the start of the main JSX return block in `profile/page.tsx`.
+5.  AI attempted to fix this by correcting a malformed try-catch structure within the `onSubmit` handler in `profile/page.tsx`. This change was committed to branch `fix/onboarding-profile-submit-logic`.
+6.  The syntax error ("Unexpected token `div`") persisted. AI then attempted to clean the transition to JSX by removing a comment between the `onSubmit` function and the main `return` statement. This change was committed to branch `fix/onboarding-profile-jsx-parse`.
+7.  The syntax error ("Unexpected token `div`") *still* persisted.
+8.  As a diagnostic step, AI converted `profile/page.tsx` into a "barebones" component by commenting out its entire original function body and replacing it with a simple `return (<div>Test Page. If you see this, the basic component compiles.</div>);`. This change was committed to branch `debug/profile-page-barebones`.
+9.  User reported that even with the "barebones" version of the file (confirmed by user pasting the file content), the compiler *still* throws an "Expression expected" error (a variation of the syntax error), pointing to lines that are now within the commented-out block of the "barebones" version.
+10. **Current Status & Hypothesis**: The "barebones" `profile/page.tsx` is syntactically correct and should compile without error. The persistent compilation error, which points to lines *within comments* in the "barebones" version, strongly suggests a stubborn local environment issue on the user's machine. This is likely related to build tool caching (e.g., webpack, Next.js cache persisting an old state of the file) or file system inconsistencies that cause the build tool to "see" an outdated or corrupted version of the file. Webpack caching errors (`webpack.cache.PackFileCacheStrategy`) were previously noted in user's logs and might be related.
+11. **Recommendation to User**: Detailed steps for aggressive cache cleaning were provided to the user. These include deleting the `.next` directory, `node_modules`, `package-lock.json` (or `pnpm-lock.yaml`), running `npm cache clean --force` (or equivalent for pnpm: `pnpm store prune`), restarting the computer, and then reinstalling dependencies (`pnpm install`). The issue is highly unlikely to be in the committed code itself at this stage (especially the "barebones" version) but rather in the local build environment's handling and caching of it.
