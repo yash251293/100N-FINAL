@@ -155,17 +155,14 @@ export default function ProfilePage() {
       if (finalUserType === 'company' && data.industry) payload.industry = data.industry;
       if (finalUserType === 'company' && data.company_size) payload.company_size = data.company_size;
 
+      await updateUserProfile(payload, token); // API call
 
-      await updateUserProfile(payload, token);
-    if (!token) {
-      toast.error("Authentication token not found. Please log in again.");
-      return;
-    }
-    try {
+      // If updateUserProfile is successful, then do these:
       toast.success("Profile updated successfully!");
       await refetchUser(); // Refetch user data to update context
       router.push(`/auth/onboarding/preferences`);
-    } catch (error: any) {
+
+    } catch (error: any) { // This single catch handles errors from payload logic OR updateUserProfile
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
