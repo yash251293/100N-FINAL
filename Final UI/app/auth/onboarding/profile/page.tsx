@@ -50,6 +50,7 @@ type ProfileFormValues = IndividualProfileValues | CompanyProfileValues;
 
 
 export default function ProfilePage() {
+  /*
   const { user, token, isLoading: isAuthLoading, refetchUser } = useAuth(); // Hook 1
   const router = useRouter(); // Hook 2
 
@@ -656,4 +657,7 @@ export default function ProfilePage() {
       </div>
     </div>
   );
+}
+*/
+  return (<div>Test Page. If you see this, the basic component compiles.</div>);
 }
