@@ -139,30 +139,17 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // Ensure only relevant fields for the user type are sent
-      let payload: Partial<ProfileFormValues> = {};
-      if (finalUserType === 'individual') { // Use finalUserType for logic
-        const { company_name, industry, company_size, company_type, tech_stack, ...individualData } = data as CompanyProfileValues & IndividualProfileValues;
-        payload = individualData;
-      } else { // company
-        const { full_name, professional_title, years_of_experience, job_function, key_skills, education_level, field_of_study, institution, ...companyData } = data as IndividualProfileValues & CompanyProfileValues;
-        payload = companyData;
-      }
+      // The 'data' object already conforms to either IndividualProfileValues or CompanyProfileValues
+      // based on the 'currentSchema' used in useForm.
+      // The backend endpoint PUT /api/users/profile is designed to pick out the relevant fields
+      // for 'users' and 'user_profiles' tables.
+      await updateUserProfile(data, token); // Pass the schema-validated data directly
 
-      // Include the base user fields that might be updated via profile
-      if (finalUserType === 'individual' && data.full_name) payload.full_name = data.full_name;
-      if (finalUserType === 'company' && data.company_name) payload.company_name = data.company_name;
-      if (finalUserType === 'company' && data.industry) payload.industry = data.industry;
-      if (finalUserType === 'company' && data.company_size) payload.company_size = data.company_size;
-
-      await updateUserProfile(payload, token); // API call
-
-      // If updateUserProfile is successful, then do these:
       toast.success("Profile updated successfully!");
       await refetchUser(); // Refetch user data to update context
-      router.push(`/auth/onboarding/preferences`);
+      router.push(`/auth/onboarding/preferences`); // Consider adding type=${finalUserType} if preferences page needs it
 
-    } catch (error: any) { // This single catch handles errors from payload logic OR updateUserProfile
+    } catch (error: any) {
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
