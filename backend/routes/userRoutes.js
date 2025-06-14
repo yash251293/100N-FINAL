@@ -21,23 +21,68 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const userQuery = `
-      SELECT id, email, user_type, full_name, company_name, industry, company_size, created_at, updated_at
-      FROM users
-      WHERE id = $1;
+      SELECT
+        u.id, u.email, u.user_type, u.full_name, u.company_name, u.industry, u.company_size,
+        u.created_at AS user_created_at, u.updated_at AS user_updated_at,
+        up.location, up.professional_title, up.years_of_experience, up.job_function,
+        up.key_skills, up.education_level, up.field_of_study, up.institution,
+        up.linkedin_url, up.website_url, up.bio, up.company_type, up.tech_stack,
+        up.created_at AS profile_created_at, up.updated_at AS profile_updated_at
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      WHERE u.id = $1;
     `;
 
     const { rows } = await db.query(userQuery, [userId]);
 
     if (rows.length === 0) {
-      // This is an unlikely edge case: token is valid, but user ID doesn't exist in DB.
-      // Could happen if user was deleted after token issuance but before expiry.
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    res.json(rows[0]);
+    const userData = rows[0];
+    const userResponse = {
+      id: userData.id,
+      email: userData.email,
+      user_type: userData.user_type,
+      full_name: userData.full_name,
+      company_name: userData.company_name,
+      industry: userData.industry,
+      company_size: userData.company_size,
+      user_created_at: userData.user_created_at,
+      user_updated_at: userData.user_updated_at,
+      profile: {
+        location: userData.location,
+        professional_title: userData.professional_title,
+        years_of_experience: userData.years_of_experience,
+        job_function: userData.job_function,
+        key_skills: userData.key_skills,
+        education_level: userData.education_level,
+        field_of_study: userData.field_of_study,
+        institution: userData.institution,
+        linkedin_url: userData.linkedin_url,
+        website_url: userData.website_url,
+        bio: userData.bio,
+        company_type: userData.company_type,
+        tech_stack: userData.tech_stack,
+        profile_created_at: userData.profile_created_at,
+        profile_updated_at: userData.profile_updated_at
+      }
+    };
+
+    // If no profile exists, the profile object will have all null values.
+    // Check if a key profile field (like professional_title for individual or company_type for company, or just bio) is null.
+    // This indicates no actual profile record was joined.
+    if (userResponse.profile.bio === null &&
+        userResponse.profile.location === null &&
+        userResponse.profile.professional_title === null && // Add a few more key fields
+        userResponse.profile.company_type === null) {
+      userResponse.profile = null; // Or an empty object {} if preferred by frontend
+    }
+
+    res.json(userResponse);
 
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error fetching user profile with details:', error);
     res.status(500).json({ message: 'Server error while fetching user profile.' });
   }
 });
