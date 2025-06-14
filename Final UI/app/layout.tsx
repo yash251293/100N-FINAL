@@ -61,7 +61,7 @@ export default function RootLayout({
 
   // The actual page content that needs protection or public access
   const pageContent = (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       {/* HeaderWrapper might also need to be auth-aware or path-aware
           if we don't want to show any header on /auth pages */}
       {!isPublicPath && <HeaderWrapper />}
@@ -69,7 +69,7 @@ export default function RootLayout({
       {/* Let's try hiding HeaderWrapper on public auth paths for a cleaner look */}
       {/* If HeaderWrapper is always needed, then Header component itself handles its display logic */}
 
-      <main className="flex-1 overflow-auto px-4 py-3">{children}</main>
+      <main className="flex-1 px-4 py-3">{children}</main>
     </div>
   );
 

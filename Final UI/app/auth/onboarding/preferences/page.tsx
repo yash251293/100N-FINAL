@@ -86,131 +86,22 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({ value, selectedValue, onSel
 )
 
 export default function PreferencesPage() {
+  // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY CONDITIONAL LOGIC OR EARLY RETURNS
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth(); // Updated useAuth
+  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth();
   const queryUserType = searchParams.get('type') as 'individual' | 'company' | null;
 
   // State for company salary UI (controlled inputs) - RHF will still hold the source of truth via register/controller
   const [companySalary, setCompanySalary] = useState({ min: "", max: "", currency: "usd" });
-  // Note: Individual salary is handled directly by RHF {...register} for inputs, and Controller for Select.
 
-  // The old useState hooks for form fields are being removed as RHF will manage them.
-  // const [hiringStatus, setHiringStatus] = useState("actively-hiring")
-  // const [employmentType, setEmploymentType] = useState("full-time")
-  // const [roles, setRoles] = useState<string[]>(["Software Engineering"]) // Company roles
-  // const [jobStatus, setJobStatus] = useState("actively-looking")
-  // const [desiredRoles, setDesiredRoles] = useState<string[]>(["Software Engineering"]) // Individual roles
-  // const [workArrangement, setWorkArrangement] = useState("hybrid")
-  // const [experienceLevel, setExperienceLevel] = useState("mid-level")
-  // const [careerGoals, setCareerGoals] = useState<string[]>([])
-  // const [locations, setLocations] = useState<string[]>(["Noida"]) // This was for individual locations display, now handled by RHF watch
+  // Determine userType for schema selection
+  const finalUserType = user?.user_type || queryUserType || 'individual';
+  const currentSchema = finalUserType === 'company' ? companyPreferencesSchema : individualPreferencesSchema;
 
-  // Form setup
-  const currentSchema = userType === 'company' ? companyPreferencesSchema : individualPreferencesSchema;
+  // Form setup - MUST be called before any conditional returns
   const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch, setValue } = useForm<PreferencesFormValues>({
     resolver: zodResolver(currentSchema),
-    defaultValues: {
-      // Common defaults or type-specific
-      jobStatus: "actively-looking",
-      desiredRoles: ["Software Engineering"],
-      workArrangement: "hybrid",
-      experienceLevel: "mid-level",
-      salaryExpectationCurrency: "usd",
-      careerGoals: [],
-      locations: ["Noida"], // Default for individual
-
-      hiringStatus: "actively-hiring",
-      employmentType: "full-time",
-      roles: ["Software Engineering"], // Default for company
-      companyLocations: ["Noida"], // Default for company
-      hiringSalaryCurrency: "usd",
-      // Min/max salaries intentionally left undefined to use placeholder
-    },
-  });
-
-  const onSubmit: SubmitHandler<PreferencesFormValues> = async (data) => {
-    if (!token) {
-      toast.error("Authentication token not found. Please log in again.");
-      return;
-    }
-
-    let payload: Partial<PreferencesFormValues> = {};
-
-    if (userType === 'individual') {
-      // Ensure only individual fields are included
-      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any; // Cast to any to pick fields
-      payload = {
-        jobStatus: individualData.jobStatus,
-        desiredRoles: individualData.desiredRoles,
-        workArrangement: individualData.workArrangement,
-        experienceLevel: individualData.experienceLevel,
-        salaryExpectationMin: individualData.salaryExpectationMin,
-        salaryExpectationMax: individualData.salaryExpectationMax,
-        salaryExpectationCurrency: individualData.salaryExpectationCurrency,
-        careerGoals: individualData.careerGoals,
-        locations: individualData.locations,
-      };
-    } else if (userType === 'company') {
-      // Ensure only company fields are included
-      const { locations, salaryExpectationMin, salaryExpectationMax, salaryExpectationCurrency, careerGoals, jobStatus, desiredRoles, workArrangement, experienceLevel, ...companyData } = data as any;
-      payload = {
-        hiringStatus: companyData.hiringStatus,
-        employmentType: companyData.employmentType,
-        roles: companyData.roles,
-        companyLocations: companyData.companyLocations, // Use the correct field name for company
-        hiringSalaryMin: companyData.hiringSalaryMin,
-        hiringSalaryMax: companyData.hiringSalaryMax,
-        hiringSalaryCurrency: companyData.hiringSalaryCurrency,
-      };
-    }
-    // Remove undefined values from payload to keep it clean
-    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-
-
-    try {
-      await updateUserPreferences(payload, token);
-      toast.success("Preferences saved successfully!");
-      await refetchUser(); // Refetch user data to update context
-
-      if (userType === 'individual') {
-        router.push(`/auth/onboarding/culture?type=${userType}`);
-      } else { // company
-        router.push(`/auth/onboarding/done?type=${userType}`);
-      }
-    } catch (error: any) {
-      toast.error("Failed to save preferences: " + (error.data?.message || error.message));
-    }
-  };
-
-  // Sync local state 'locations' with form state for 'locations' (individual) or 'companyLocations' (company)
-  // useEffect and handleLocationChange for the old 'locations' state are no longer needed
-  // as 'companyLocations' and 'locations' (individual) are directly managed by RHF.
-  // UI components for displaying selected locations will use `watch()` from RHF.
-
-  if (isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
-  }
-
-  // Determine userType for page logic, defaulting if user context isn't fully ready or param is missing
-  // Prefer user.user_type from context once loaded.
-  const finalUserType = user?.user_type || queryUserType || 'individual';
-
-  if (!user && !queryUserType) {
-    toast.error("User information not available or user type not specified. Redirecting to login.");
-    if (typeof window !== 'undefined') {
-        router.push('/auth/login');
-    }
-    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
-  }
-  // The existing 'userType' variable in the original code was used for schema and form rendering logic.
-  // We'll replace its usages with 'finalUserType'.
-  // The useForm hook itself is called unconditionally further down. Its resolver will use the `finalUserType`.
-  const currentSchema = finalUserType === 'company' ? companyPreferencesSchema : individualPreferencesSchema; // Define currentSchema using finalUserType
-
-  // Form setup
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch, setValue } = useForm<PreferencesFormValues>({
-    resolver: zodResolver(currentSchema), // Use the re-evaluated currentSchema
     defaultValues: {
       jobStatus: "actively-looking",
       desiredRoles: ["Software Engineering"],
@@ -227,6 +118,19 @@ export default function PreferencesPage() {
     },
   });
 
+  // NOW we can have conditional returns - AFTER all hooks have been called
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
+  }
+
+  if (!user && !queryUserType) {
+    toast.error("User information not available or user type not specified. Redirecting to login.");
+    if (typeof window !== 'undefined') {
+        router.push('/auth/login');
+    }
+    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+  }
+
   const onSubmit: SubmitHandler<PreferencesFormValues> = async (data) => {
     if (!token) {
       toast.error("Authentication token not found. Please log in again.");
@@ -234,7 +138,8 @@ export default function PreferencesPage() {
     }
     let payload: Partial<PreferencesFormValues> = {};
     if (finalUserType === 'individual') {
-      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any;
+      // Ensure only individual fields are included
+      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any; // Cast to any to pick fields
       payload = {
         jobStatus: individualData.jobStatus,
         desiredRoles: individualData.desiredRoles,
@@ -247,6 +152,7 @@ export default function PreferencesPage() {
         locations: individualData.locations,
       };
     } else if (finalUserType === 'company') {
+      // Ensure only company fields are included
       const { locations, salaryExpectationMin, salaryExpectationMax, salaryExpectationCurrency, careerGoals, jobStatus, desiredRoles, workArrangement, experienceLevel, ...companyData } = data as any;
       payload = {
         hiringStatus: companyData.hiringStatus,
@@ -258,7 +164,13 @@ export default function PreferencesPage() {
         hiringSalaryCurrency: companyData.hiringSalaryCurrency,
       };
     }
-    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+    Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
+    
+    // Debug logging
+    console.log('Preferences payload being sent:', payload);
+    console.log('User type:', finalUserType);
+    console.log('Token available:', !!token);
+    
     try {
       await updateUserPreferences(payload, token);
       toast.success("Preferences saved successfully!");
@@ -269,7 +181,25 @@ export default function PreferencesPage() {
         router.push(`/auth/onboarding/done?type=${finalUserType}`);
       }
     } catch (error: any) {
-      toast.error("Failed to save preferences: " + (error.data?.message || error.message));
+      console.error('Preferences update error:', error);
+      console.error('Error status:', error.status);
+      console.error('Error data:', error.data);
+      
+      // Provide more specific error messages
+      let errorMessage = "Server error while updating preferences.";
+      if (error.status === 400) {
+        errorMessage = "Invalid preferences data. Please check your inputs.";
+      } else if (error.status === 401) {
+        errorMessage = "Authentication failed. Please log in again.";
+      } else if (error.status === 404) {
+        errorMessage = "Preferences endpoint not found. Please contact support.";
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error("Failed to save preferences: " + errorMessage);
     }
   };
 
@@ -305,61 +235,42 @@ export default function PreferencesPage() {
                     What's your current hiring status? <span className="text-brand-red">*</span>
                   </Label>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    {
-                      value: "actively-hiring",
-                      label: "Actively Hiring",
-                      desc: "We have open positions and are actively interviewing candidates.",
-                    },
-                    {
-                      value: "planning-to-hire",
-                      label: "Planning to Hire",
-                      desc: "We'll be hiring soon and want to start building our talent pipeline.",
-                    },
-                    {
-                      value: "not-hiring",
-                      label: "Not Hiring Right Now",
-                      desc: "We're not currently hiring but want to keep our company profile active.",
-                    },
-                  ].map((item) => (
-                    <Controller
-                      name="hiringStatus"
-                      control={control}
-                      render={({ field }) => (
-                        <>
-                          {[
-                            { value: "actively-hiring", label: "Actively Hiring", desc: "We have open positions and are actively interviewing candidates." },
-                            { value: "planning-to-hire", label: "Planning to Hire", desc: "We'll be hiring soon and want to start building our talent pipeline." },
-                            { value: "not-hiring", label: "Not Hiring Right Now", desc: "We're not currently hiring but want to keep our company profile active." },
-                          ].map((item) => (
-                            <button
-                              key={item.value}
-                              type="button"
-                              onClick={() => field.onChange(item.value)}
-                              className={cn(
-                                "p-5 border rounded-xl text-left transition-all duration-200",
-                                field.value === item.value
-                                  ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
-                                  : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
-                              )}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
-                                  <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
-                                </div>
-                                {field.value === item.value && (
-                                  <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    />
-                  {errors.hiringStatus && <p className="text-red-500 text-xs mt-1">{errors.hiringStatus.message}</p>}
-                </div>
+                <Controller
+                  name="hiringStatus"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="grid grid-cols-1 gap-4">
+                      {[
+                        { value: "actively-hiring", label: "Actively Hiring", desc: "We have open positions and are actively interviewing candidates." },
+                        { value: "planning-to-hire", label: "Planning to Hire", desc: "We'll be hiring soon and want to start building our talent pipeline." },
+                        { value: "not-hiring", label: "Not Hiring Right Now", desc: "We're not currently hiring but want to keep our company profile active." },
+                      ].map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => field.onChange(item.value)}
+                          className={cn(
+                            "p-5 border rounded-xl text-left transition-all duration-200",
+                            field.value === item.value
+                              ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
+                              : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                          )}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
+                              <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
+                            </div>
+                            {field.value === item.value && (
+                              <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                />
+                {(errors as any).hiringStatus && <p className="text-red-500 text-xs mt-1">{(errors as any).hiringStatus.message}</p>}
               </div>
 
               {/* Employment Type */}
@@ -394,7 +305,7 @@ export default function PreferencesPage() {
                     </div>
                   )}
                 />
-                {errors.employmentType && <p className="text-red-500 text-xs mt-1">{errors.employmentType.message}</p>}
+                {(errors as any).employmentType && <p className="text-red-500 text-xs mt-1">{(errors as any).employmentType.message}</p>}
               </div>
 
               {/* Salary Range */}
@@ -605,61 +516,42 @@ export default function PreferencesPage() {
                     What's your current job search status? <span className="text-brand-red">*</span>
                   </Label>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    {
-                      value: "actively-looking",
-                      label: "Actively Looking",
-                      desc: "I'm actively applying and interviewing for new opportunities.",
-                    },
-                    {
-                      value: "open-to-opportunities",
-                      label: "Open to Opportunities",
-                      desc: "I'm not actively searching but open to the right opportunity.",
-                    },
-                    {
-                      value: "exploring",
-                      label: "Just Exploring",
-                      desc: "I'm researching and exploring what's available in the market.",
-                    },
-                  ].map((item) => (
-                    <Controller
-                      name="jobStatus"
-                      control={control}
-                      render={({ field }) => (
-                        <>
-                          {[
-                            { value: "actively-looking", label: "Actively Looking", desc: "I'm actively applying and interviewing for new opportunities." },
-                            { value: "open-to-opportunities", label: "Open to Opportunities", desc: "I'm not actively searching but open to the right opportunity." },
-                            { value: "exploring", label: "Just Exploring", desc: "I'm researching and exploring what's available in the market." },
-                          ].map((item) => (
-                            <button
-                              key={item.value}
-                              type="button"
-                              onClick={() => field.onChange(item.value)}
-                              className={cn(
-                                "p-5 border rounded-xl text-left transition-all duration-200",
-                                field.value === item.value
-                                  ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
-                                  : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
-                              )}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
-                                  <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
-                                </div>
-                                {field.value === item.value && (
-                                  <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    />
-                    {errors.jobStatus && <p className="text-red-500 text-xs mt-1">{errors.jobStatus.message}</p>}
-                </div>
+                <Controller
+                  name="jobStatus"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="grid grid-cols-1 gap-4">
+                      {[
+                        { value: "actively-looking", label: "Actively Looking", desc: "I'm actively applying and interviewing for new opportunities." },
+                        { value: "open-to-opportunities", label: "Open to Opportunities", desc: "I'm not actively searching but open to the right opportunity." },
+                        { value: "exploring", label: "Just Exploring", desc: "I'm researching and exploring what's available in the market." },
+                      ].map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => field.onChange(item.value)}
+                          className={cn(
+                            "p-5 border rounded-xl text-left transition-all duration-200",
+                            field.value === item.value
+                              ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
+                              : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
+                          )}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
+                              <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
+                            </div>
+                            {field.value === item.value && (
+                              <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                />
+                {errors.jobStatus && <p className="text-red-500 text-xs mt-1">{errors.jobStatus.message}</p>}
               </div>
 
               {/* Desired Roles (Individual) */}

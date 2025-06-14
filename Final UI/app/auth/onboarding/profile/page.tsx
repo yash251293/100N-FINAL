@@ -34,6 +34,7 @@ const individualProfileSchema = commonProfileSchema.extend({
   education_level: z.string().optional(),
   field_of_study: z.string().optional(),
   institution: z.string().optional(),
+  industry: z.string().optional(), // Added industry field for individuals
 });
 
 const companyProfileSchema = commonProfileSchema.extend({
@@ -139,17 +140,47 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // The 'data' object already conforms to either IndividualProfileValues or CompanyProfileValues
-      // based on the 'currentSchema' used in useForm.
-      // The backend endpoint PUT /api/users/profile is designed to pick out the relevant fields
-      // for 'users' and 'user_profiles' tables.
-      await updateUserProfile(data, token); // Pass the schema-validated data directly
+      // Ensure only relevant fields for the user type are sent
+      let payload: any = {};
+      if (finalUserType === 'individual') { // Use finalUserType for logic
+        const individualData = data as IndividualProfileValues;
+        payload = {
+          location: individualData.location,
+          linkedin_url: individualData.linkedin_url,
+          website_url: individualData.website_url,
+          bio: individualData.bio,
+          full_name: individualData.full_name,
+          professional_title: individualData.professional_title,
+          years_of_experience: individualData.years_of_experience,
+          job_function: individualData.job_function,
+          key_skills: individualData.key_skills,
+          education_level: individualData.education_level,
+          field_of_study: individualData.field_of_study,
+          institution: individualData.institution,
+        };
+      } else { // company
+        const companyData = data as CompanyProfileValues;
+        payload = {
+          location: companyData.location,
+          linkedin_url: companyData.linkedin_url,
+          website_url: companyData.website_url,
+          bio: companyData.bio,
+          company_name: companyData.company_name,
+          industry: companyData.industry,
+          company_size: companyData.company_size,
+          company_type: companyData.company_type,
+          tech_stack: companyData.tech_stack,
+        };
+      }
 
+      await updateUserProfile(payload, token); // API call
+
+      // If updateUserProfile is successful, then do these:
       toast.success("Profile updated successfully!");
       await refetchUser(); // Refetch user data to update context
-      router.push(`/auth/onboarding/preferences`); // Consider adding type=${finalUserType} if preferences page needs it
+      router.push(`/auth/onboarding/preferences`);
 
-    } catch (error: any) {
+    } catch (error: any) { // This single catch handles errors from payload logic OR updateUserProfile
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
@@ -157,7 +188,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+      <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100 mb-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-black to-gray-800 rounded-2xl shadow-lg mb-4">
             {finalUserType === 'company' ? ( // Use finalUserType for rendering
@@ -215,7 +246,7 @@ export default function ProfilePage() {
               </Label>
               <Textarea
                 id="bio"
-                placeholder={finalUserType === 'company' ? 'Describe your company mission, values, and culture...' : 'Share a bit about your professional journey, interests, or what you are looking for...'} {/* Use finalUserType for rendering */}
+                placeholder={finalUserType === 'company' ? 'Describe your company mission, values, and culture' : 'Share a bit about your professional journey, interests, or what you are looking for'}
                 {...register("bio")}
                 className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 min-h-[120px]"
               />
@@ -243,7 +274,7 @@ export default function ProfilePage() {
                       {...register("company_name")}
                       className="mt-1 bg-brand-bg-input border-brand-border placeholder-brand-text-light focus:border-black focus:ring-1 focus:ring-black/20 py-3 px-3 text-base h-12"
                     />
-                    {errors.company_name && <p className="text-red-500 text-xs mt-1">{(errors as any).company_name?.message}</p>}
+                    {(errors as any).company_name && <p className="text-red-500 text-xs mt-1">{(errors as any).company_name?.message}</p>}
                   </div>
                   <div>
                     <Label htmlFor="company_type" className="block text-base font-semibold text-brand-text-dark mb-3">
@@ -268,7 +299,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.company_type && <p className="text-red-500 text-xs mt-1">{(errors as any).company_type?.message}</p>}
+                    {(errors as any).company_type && <p className="text-red-500 text-xs mt-1">{(errors as any).company_type?.message}</p>}
                   </div>
                   <div>
                     <Label htmlFor="company_size" className="block text-base font-semibold text-brand-text-dark mb-3">
@@ -293,7 +324,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.company_size && <p className="text-red-500 text-xs mt-1">{(errors as any).company_size?.message}</p>}
+                    {(errors as any).company_size && <p className="text-red-500 text-xs mt-1">{(errors as any).company_size?.message}</p>}
                   </div>
                 </div>
               </div>
@@ -329,7 +360,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.industry && <p className="text-red-500 text-xs mt-1">{(errors as any).industry?.message}</p>}
+                    {(errors as any).industry && <p className="text-red-500 text-xs mt-1">{(errors as any).industry?.message}</p>}
                   </div>
                   <div>
                     <Label htmlFor="tech_stack" className="block text-base font-semibold text-brand-text-dark mb-3">
@@ -344,7 +375,7 @@ export default function ProfilePage() {
                       {...register("tech_stack")}
                       className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                     />
-                    {errors.tech_stack && <p className="text-red-500 text-xs mt-1">{(errors as any).tech_stack?.message}</p>}
+                    {(errors as any).tech_stack && <p className="text-red-500 text-xs mt-1">{(errors as any).tech_stack?.message}</p>}
                   </div>
                 </div>
               </div>
@@ -404,7 +435,7 @@ export default function ProfilePage() {
                       {...register("full_name")}
                       className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                     />
-                    {errors.full_name && <p className="text-red-500 text-xs mt-1">{(errors as any).full_name?.message}</p>}
+                    {(errors as any).full_name && <p className="text-red-500 text-xs mt-1">{(errors as any).full_name?.message}</p>}
                   </div>
 
                   <div>
@@ -417,7 +448,7 @@ export default function ProfilePage() {
                       {...register("professional_title")}
                       className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                     />
-                    {errors.professional_title && <p className="text-red-500 text-xs mt-1">{(errors as any).professional_title?.message}</p>}
+                    {(errors as any).professional_title && <p className="text-red-500 text-xs mt-1">{(errors as any).professional_title?.message}</p>}
                   </div>
 
                   <div>
@@ -442,7 +473,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.years_of_experience && <p className="text-red-500 text-xs mt-1">{(errors as any).years_of_experience?.message}</p>}
+                    {(errors as any).years_of_experience && <p className="text-red-500 text-xs mt-1">{(errors as any).years_of_experience?.message}</p>}
                   </div>
                 </div>
               </div>
@@ -482,7 +513,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.industry && <p className="text-red-500 text-xs mt-1">{(errors as any).industry?.message}</p>}
+                    {(errors as any).industry && <p className="text-red-500 text-xs mt-1">{(errors as any).industry?.message}</p>}
                   </div>
 
                   <div>
@@ -511,7 +542,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.job_function && <p className="text-red-500 text-xs mt-1">{(errors as any).job_function?.message}</p>}
+                    {(errors as any).job_function && <p className="text-red-500 text-xs mt-1">{(errors as any).job_function?.message}</p>}
                   </div>
 
                   <div>
@@ -524,7 +555,7 @@ export default function ProfilePage() {
                       {...register("key_skills")}
                       className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                     />
-                    {errors.key_skills && <p className="text-red-500 text-xs mt-1">{(errors as any).key_skills?.message}</p>}
+                    {(errors as any).key_skills && <p className="text-red-500 text-xs mt-1">{(errors as any).key_skills?.message}</p>}
                   </div>
                 </div>
               </div>
@@ -562,7 +593,7 @@ export default function ProfilePage() {
                         </Select>
                       )}
                     />
-                    {errors.education_level && <p className="text-red-500 text-xs mt-1">{(errors as any).education_level?.message}</p>}
+                    {(errors as any).education_level && <p className="text-red-500 text-xs mt-1">{(errors as any).education_level?.message}</p>}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -576,7 +607,7 @@ export default function ProfilePage() {
                         {...register("field_of_study")}
                         className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                       />
-                       {errors.field_of_study && <p className="text-red-500 text-xs mt-1">{(errors as any).field_of_study?.message}</p>}
+                       {(errors as any).field_of_study && <p className="text-red-500 text-xs mt-1">{(errors as any).field_of_study?.message}</p>}
                     </div>
                     <div>
                       <Label htmlFor="institution" className="block text-base font-semibold text-brand-text-dark mb-3">
@@ -588,7 +619,7 @@ export default function ProfilePage() {
                         {...register("institution")}
                         className="bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20 h-12"
                       />
-                      {errors.institution && <p className="text-red-500 text-xs mt-1">{(errors as any).institution?.message}</p>}
+                      {(errors as any).institution && <p className="text-red-500 text-xs mt-1">{(errors as any).institution?.message}</p>}
                     </div>
                   </div>
                 </div>
