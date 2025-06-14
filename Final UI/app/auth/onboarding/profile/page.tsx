@@ -166,7 +166,6 @@ export default function ProfilePage() {
       toast.error("Failed to update profile: " + (error.data?.message || error.message));
     }
   };
-  // The return statement with the full form will be constructed iteratively.
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
