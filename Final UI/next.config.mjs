@@ -9,7 +9,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  output: 'export',
+  // Temporarily disable static export to get site working
+  // output: 'export',
   trailingSlash: true,
 };
 
