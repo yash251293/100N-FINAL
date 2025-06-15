@@ -1,29 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { 
-  PlusIcon, 
-  XIcon, 
-  BriefcaseIcon, 
-  GraduationCapIcon, 
-  StarIcon, 
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  PlusIcon,
+  XIcon,
+  BriefcaseIcon,
+  GraduationCapIcon,
+  StarIcon,
   UserIcon,
-  CalendarIcon,
   BuildingIcon,
-  AwardIcon,
-  LinkIcon,
   UsersIcon,
   CheckCircle2
-} from "lucide-react"
-import Link from "next/link"
-import { cn } from "@/lib/utils"
-import { useRouter, useSearchParams } from "next/navigation"
+} from "lucide-react"; // Removed unused CalendarIcon, AwardIcon, LinkIcon
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "../../../context/AuthContext"; // Corrected path
+import { toast } from "sonner";
 
 interface ExperienceEntry {
   id: string
@@ -61,14 +60,39 @@ interface Benefit {
 }
 
 export default function CompleteProfilePage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const userType = searchParams.get('type') || 'individual'
-  const [isSaving, setIsSaving] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, token, isLoading: isAuthLoading, refetchUser } = useAuth();
+
+  // Prioritize userType from AuthContext once loaded, fallback to query param initially
+  const [currentUserType, setCurrentUserType] = useState<string | null>(() => {
+    // Initialize from query param if auth context isn't ready or user is null
+    return searchParams.get('type') || null;
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+
+  useEffect(() => {
+    if (user && user.user_type) {
+      setCurrentUserType(user.user_type);
+    } else if (!isAuthLoading && !user) {
+      // If auth loading is done, user is null, and currentUserType wasn't set by query param
+      // This could mean direct access without query param or after logout.
+      // Redirect or set a default, but for now, if query param was there, it's used.
+      // If no query param and no user, it might need a redirect.
+      if (!searchParams.get('type')) {
+         // console.warn("User type not available. Redirecting or defaulting.");
+         // For now, let's default to individual if nothing is found to avoid breaking UI immediately
+         setCurrentUserType('individual');
+         // router.push('/dashboard'); // Or a login page
+      }
+    }
+  }, [user, isAuthLoading, searchParams, router]);
   
   // Company-specific state
-  const [mission, setMission] = useState("")
+  const [mission, setMission] = useState("");
   const [vision, setVision] = useState("")
   const [values, setValues] = useState<string[]>([])
   const [jobOpenings, setJobOpenings] = useState<JobOpening[]>([])
@@ -205,23 +229,92 @@ export default function CompleteProfilePage() {
   }
 
   const removeSkill = (skill: string) => {
-    setSkills(skills.filter(s => s !== skill))
+    setSkills(skills.filter(s => s !== skill));
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!token) { // currentUserType check is implicitly handled by payload construction
+      toast.error("Authentication error. Please log in again.");
+      setSubmitError("Authentication error. Please log in again.");
+      return;
+    }
+    if (!currentUserType) {
+      toast.error("User type could not be determined. Please try again.");
+      setSubmitError("User type could not be determined. Please try again.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    let payload = {};
+    if (currentUserType === 'individual') {
+      payload = {
+        professionalSummary: professionalSummary || null,
+        experiences: experiences.filter(exp => exp.title && exp.company),
+        education: education.filter(edu => edu.degree && edu.school),
+        skills: skills.length > 0 ? skills : null,
+        interests: interests.length > 0 ? interests : null,
+        portfolio: portfolio || null,
+        linkedin: linkedin || null,
+        github: github || null,
+        website: website || null,
+      };
+    } else if (currentUserType === 'company') {
+      payload = {
+        mission: mission || null,
+        vision: vision || null,
+        values: values.length > 0 ? values : null,
+        jobOpenings: jobOpenings.filter(job => job.title && job.department),
+        teamSize: teamSize || null,
+        companyCulture: companyCulture || null,
+        benefits: benefits.filter(benefit => benefit.title),
+      };
+    }
+
+    try {
+      const response = await fetch('/api/users/profile/complete', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast.success(result.message || "Profile updated successfully!");
+        setShowSuccessScreen(true);
+        if (refetchUser) await refetchUser();
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        toast.error(result.message || "Failed to update profile.");
+        setSubmitError(result.message || "Failed to update profile.");
+      }
+    } catch (error) {
+      console.error("Error submitting profile:", error);
+      toast.error("An unexpected error occurred. Please try again.");
+      setSubmitError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isAuthLoading || !currentUserType) { // Check if currentUserType is determined
+    return (
+      <div className="min-h-screen bg-brand-bg-light-gray py-8 flex items-center justify-center">
+        <p>Loading user information...</p>
+        {/* Consider adding a spinner here */}
+      </div>
+    );
   }
 
-  const handleSave = async () => {
-    setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setShowSuccess(true)
-    setIsSaving(false)
-    
-    // Redirect to dashboard after 2 seconds
-    setTimeout(() => {
-      router.push('/dashboard')
-    }, 2000)
-  }
-
-  if (showSuccess) {
+  if (showSuccessScreen) {
     return (
       <div className="min-h-screen bg-brand-bg-light-gray py-8 flex items-center justify-center">
         <div className="max-w-md w-full mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100 text-center">
@@ -230,7 +323,7 @@ export default function CompleteProfilePage() {
           </div>
           <h1 className="text-2xl font-bold text-brand-text-dark mb-3">Profile Updated Successfully!</h1>
           <p className="text-brand-text-medium mb-6">
-            {userType === 'company' 
+            {currentUserType === 'company'
               ? "Your company profile has been saved and is now live!"
               : "Your professional profile has been saved and is now visible to employers!"
             }
@@ -238,7 +331,7 @@ export default function CompleteProfilePage() {
           <p className="text-sm text-brand-text-light">Redirecting to dashboard...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -247,19 +340,25 @@ export default function CompleteProfilePage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-brand-text-dark mb-3">
-            Complete Your {userType === 'company' ? 'Company' : 'Professional'} Profile
+            Complete Your {currentUserType === 'company' ? 'Company' : 'Professional'} Profile
           </h1>
           <p className="text-brand-text-medium leading-relaxed">
-            {userType === 'company' 
+            {currentUserType === 'company'
               ? "Add detailed information about your company to attract the best talent."
               : "Add detailed information about your experience, education, and skills to create a compelling profile that stands out to employers."
             }
           </p>
         </div>
 
-        {userType === 'company' ? (
+        {submitError && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 border border-red-300 rounded-lg">
+            <p>{submitError}</p>
+          </div>
+        )}
+
+        {currentUserType === 'company' ? (
           // Company Profile Form
-          <div className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Company Overview Section */}
             <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
               <div className="flex items-center space-x-2 mb-6">

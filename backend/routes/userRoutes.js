@@ -530,4 +530,105 @@ router.post('/resume', authMiddleware, (req, res, next) => {
 });
 
 
+// PUT /api/users/profile/complete - Update user's profile with detailed information from complete profile page
+// Protected route: Requires authentication
+router.put('/profile/complete', authMiddleware, async (req, res, next) => {
+  const userId = req.user.userId;
+
+  try {
+    // 1. Fetch user_type from the users table
+    // User type is also available in req.user.userType from JWT payload, if consistently set
+    const userType = req.user.userType;
+    // As a fallback or primary source if not in JWT:
+    // const userTypeResult = await db.query('SELECT user_type FROM users WHERE id = $1', [userId]);
+    // if (userTypeResult.rows.length === 0) {
+    //   return res.status(404).json({ message: 'User not found.' });
+    // }
+    // const userType = userTypeResult.rows[0].user_type;
+
+
+    // 2. Extract data from req.body based on user_type
+    const updates = {};
+    const body = req.body;
+
+    if (userType === 'individual') {
+      // Map frontend 'professionalSummary' to 'bio' in DB
+      if (body.professionalSummary !== undefined) updates.bio = body.professionalSummary; else updates.bio = null;
+      // Ensure JSON fields are stringified, and arrays are passed directly for TEXT[]
+      if (body.experiences !== undefined) updates.experiences = body.experiences; else updates.experiences = null; // JSONB expects object/array, not pre-stringified from client if using pg driver correctly
+      if (body.education !== undefined) updates.education_entries = body.education; else updates.education_entries = null; // JSONB for education_entries
+      if (body.skills !== undefined) updates.skills = body.skills; else updates.skills = null; // TEXT[]
+      if (body.interests !== undefined) updates.interests = body.interests; else updates.interests = null; // TEXT[]
+      if (body.portfolio !== undefined) updates.portfolio_url = body.portfolio; else updates.portfolio_url = null;
+      if (body.linkedin !== undefined) updates.linkedin_url = body.linkedin; else updates.linkedin_url = null;
+      if (body.github !== undefined) updates.github_url = body.github; else updates.github_url = null;
+      if (body.website !== undefined) updates.website_url = body.website; else updates.website_url = null;
+    } else if (userType === 'company') {
+      if (body.mission !== undefined) updates.mission = body.mission; else updates.mission = null;
+      if (body.vision !== undefined) updates.vision = body.vision; else updates.vision = null;
+      if (body.values !== undefined) updates.company_values = body.values; else updates.company_values = null; // Frontend sends 'values'
+      if (body.jobOpenings !== undefined) updates.job_openings = body.jobOpenings; else updates.job_openings = null; // JSONB
+      if (body.teamSize !== undefined) updates.team_size = body.teamSize; else updates.team_size = null;
+      if (body.companyCulture !== undefined) updates.company_culture_summary = body.companyCulture; else updates.company_culture_summary = null; // Frontend sends 'companyCulture'
+      if (body.benefits !== undefined) updates.benefits_perks = body.benefits; else updates.benefits_perks = null; // Frontend sends 'benefits'
+    }
+
+    // Filter out undefined properties to only update provided fields
+    const definedUpdates = {};
+    for (const key in updates) {
+      if (updates[key] !== undefined) { // This check is actually redundant due to the else clauses above setting to null
+        definedUpdates[key] = updates[key];
+      }
+    }
+
+    // Corrected: if updates object is empty after filtering, it means no relevant fields were sent.
+    // The prior logic would make definedUpdates same as updates if all values were intentionally set to null.
+    // The goal is to update columns even if their new value is null.
+    // So, the check should be if the initial body for this user type was empty.
+    let relevantDataProvided = false;
+    if (userType === 'individual') {
+        if (body.professionalSummary !== undefined || body.experiences !== undefined || body.education !== undefined || body.skills !== undefined || body.interests !== undefined || body.portfolio !== undefined || body.linkedin !== undefined || body.github !== undefined || body.website !== undefined) {
+            relevantDataProvided = true;
+        }
+    } else if (userType === 'company') {
+        if (body.mission !== undefined || body.vision !== undefined || body.values !== undefined || body.jobOpenings !== undefined || body.teamSize !== undefined || body.companyCulture !== undefined || body.benefits !== undefined) {
+            relevantDataProvided = true;
+        }
+    }
+
+    if (!relevantDataProvided) {
+      return res.status(400).json({ message: 'No data provided for profile completion for this user type.' });
+    }
+
+    // 3. Construct UPSERT query for user_profiles
+    // Use definedUpdates which contains all fields intended for update, including those explicitly set to null.
+    const columns = Object.keys(definedUpdates);
+    const values = Object.values(definedUpdates);
+    const valuePlaceholders = columns.map((_, i) => `$${i + 2}`).join(', '); // $1 is user_id
+    const conflictUpdates = columns.map(col => `"${col}" = EXCLUDED."${col}"`).join(', ');
+
+    const upsertQuery = `
+      INSERT INTO user_profiles (user_id, ${columns.map(col => `"${col}"`).join(', ')})
+      VALUES ($1, ${valuePlaceholders})
+      ON CONFLICT (user_id) DO UPDATE SET
+        ${conflictUpdates}, updated_at = CURRENT_TIMESTAMP
+      RETURNING *;
+    `;
+
+    const { rows } = await db.query(upsertQuery, [userId, ...values]);
+
+    res.status(200).json({
+      message: 'Profile completed successfully.',
+      profile: rows[0],
+    });
+
+  } catch (error) {
+    console.error('Error completing profile:', error);
+    // Pass to global error handler
+    const err = new Error('Server error while completing profile.');
+    // err.statusCode = 500; // Global error handler will set 500 if not set
+    next(err);
+  }
+});
+
 module.exports = router;
