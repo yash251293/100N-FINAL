@@ -272,3 +272,31 @@ The profile page (`Final UI/app/auth/onboarding/profile/page.tsx`) is now:
 - ✅ **Ready for production** with proper error handling and user feedback
 
 This resolves the critical blocking issue from previous phases and allows the onboarding flow to proceed normally.
+
+## Phase 10: Debugging and Fixing Onboarding Stepper Accuracy (AI Developer)
+
+This phase focused on resolving issues where the onboarding stepper UI and the completion status on the 'done' page were not accurately reflecting the user's actual progress through the multi-step onboarding flow (Profile, Preferences, Culture, Resume).
+
+**Problem:**
+- Users reported that the stepper would get stuck (e.g., at 40% after Profile completion) and not advance even when subsequent steps (Preferences, Culture) were successfully submitted.
+- The visual indicators (checkmarks, progress bar) were not updating correctly.
+
+**Diagnostic Process:**
+1.  Added `console.log` statements to `Final UI/components/onboarding-stepper.tsx` to inspect the `user` object being received from `AuthContext` at each render.
+2.  Collaborated with the user to perform step-by-step testing, capturing console logs before and after submitting each onboarding stage.
+3.  Analysis of these logs revealed that while `refetchUser()` was generally being called (as evidenced by `profile_updated_at` changes), the `user.profile` object in the frontend was consistently missing the specific data fields for Preferences, Culture, and Resume steps.
+
+**Root Cause Identified:**
+- The primary issue was that the backend API endpoint `GET /api/users/me` (in `backend/routes/userRoutes.js`) was not selecting or returning the columns from the `user_profiles` table that correspond to preferences, culture, and resume information.
+
+**Fixes Implemented:**
+1.  **Backend Update (`GET /api/users/me`):**
+    - Modified the SQL query in `backend/routes/userRoutes.js` to select all required columns from `user_profiles` (e.g., `job_status`, `desired_roles`, `culture_preferences`, `resume_file_path`, etc.).
+    - Updated the response construction in this route to include these newly fetched fields within the nested `profile` object sent to the frontend.
+2.  **Frontend `refetchUser()` Verification:**
+    - Ensured `refetchUser()` (from `AuthContext`) was correctly called after successful data submission on all relevant onboarding pages. This included uncommenting a previously missed `refetchUser()` call in `Final UI/app/auth/onboarding/resume/page.tsx`.
+3.  **Frontend Completion Logic Refinement:**
+    - Made the `isPreferencesComplete` helper function in `OnboardingStepper.tsx` (and its local version in `done/page.tsx`) more robust by checking a broader set of relevant fields to determine step completion.
+
+**Outcome:**
+- With the backend now providing the complete user profile data (including all onboarding fields) and the frontend correctly refetching and processing this data, the `OnboardingStepper` and the completion summary on the `OnboardingDonePage` now accurately reflect the user's true progress through all steps of the onboarding flow.
