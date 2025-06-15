@@ -112,7 +112,7 @@ const isPreferencesComplete = (user: any, userType: string | undefined): boolean
   if (!user?.profile || !userType) return false;
   const profile = user.profile;
   if (userType === 'individual') {
-    return !!(profile.job_status || (profile.desired_roles && profile.desired_roles.length > 0));
+    return !!(profile.job_status || (profile.desired_roles && profile.desired_roles.length > 0) || profile.work_arrangement || profile.experience_level_preference);
   }
   if (userType === 'company') {
     return !!(profile.hiring_status || (profile.hiring_roles && profile.hiring_roles.length > 0));

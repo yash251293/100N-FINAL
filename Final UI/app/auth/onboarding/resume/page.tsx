@@ -114,7 +114,7 @@ export default function ResumePage() {
                 await uploadUserResume(formData, token);
                 toast.success("Resume uploaded successfully!");
                 // Optionally refetch user if resume info is part of user context/profile display
-                // await refetchUser();
+                await refetchUser();
                 router.push(`/auth/onboarding/done?type=${finalUserType}`);
               } catch (error: any) {
                 toast.error("Resume upload failed: " + (error.data?.message || error.message));
