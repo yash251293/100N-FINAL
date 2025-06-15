@@ -11,8 +11,6 @@ const nextConfig = {
   },
   output: 'export',
   trailingSlash: true,
-  basePath: process.env.NODE_ENV === 'production' ? '/100N-FINAL' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/100N-FINAL/' : '',
   async rewrites() {
     return [
       {

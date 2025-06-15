@@ -4,7 +4,7 @@ A comprehensive culture management and feedback platform built with Next.js and 
 
 ## 🚀 Live Demo
 
-- **Frontend**: [https://yash251293.github.io/100N-FINAL/](https://yash251293.github.io/100N-FINAL/)
+- **Frontend**: [https://100networks.com](https://100networks.com)
 - **Backend API**: http://13.62.13.0:3001
 
 ## 📋 Project Structure
@@ -90,7 +90,7 @@ npm run dev
 
 The frontend automatically deploys to GitHub Pages when you push to the `project-analysis` branch.
 
-**URL**: https://yash251293.github.io/100N-FINAL/
+**URL**: https://100networks.com
 
 ### Option 2: Full Server Deployment (Frontend + Backend)
 
