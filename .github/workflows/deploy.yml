@@ -26,6 +26,9 @@ jobs:
       run: |
         mkdir -p static-site
         
+        # Create CNAME file
+        echo "100networks.com" > static-site/CNAME
+        
         # Create index.html
         cat > static-site/index.html << 'EOF'
         <!DOCTYPE html>
@@ -108,8 +111,9 @@ jobs:
         </html>
         EOF
         
-        # Copy CNAME file
-        cp "Final UI/public/CNAME" static-site/
+        # List files to debug
+        echo "Created files:"
+        ls -la static-site/
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
