@@ -3,130 +3,32 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ project-analysis ]
-  pull_request:
-    branches: [ project-analysis ]
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Create simple static site
+      
+    - name: Create basic site
       run: |
-        mkdir -p static-site
+        mkdir site
+        echo "<!DOCTYPE html><html><head><title>100networks.com</title></head><body><h1>🎉 100networks.com is LIVE!</h1><p>Domain successfully configured</p><a href='http://13.62.13.0:3000'>View Full App</a></body></html>" > site/index.html
+        echo "100networks.com" > site/CNAME
         
-        # Create CNAME file
-        echo "100networks.com" > static-site/CNAME
-        
-        # Create index.html
-        cat > static-site/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>CultureFix - Coming Soon</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                }
-                .container { 
-                    text-align: center; 
-                    max-width: 600px; 
-                    padding: 2rem;
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 20px;
-                    backdrop-filter: blur(10px);
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-                }
-                h1 { 
-                    font-size: 3rem; 
-                    margin-bottom: 1rem;
-                    font-weight: 700;
-                }
-                p { 
-                    font-size: 1.2rem; 
-                    margin-bottom: 2rem;
-                    opacity: 0.9;
-                }
-                .btn { 
-                    display: inline-block;
-                    padding: 15px 30px;
-                    background: rgba(255,255,255,0.2);
-                    border: 2px solid white;
-                    border-radius: 50px;
-                    color: white;
-                    text-decoration: none;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    margin: 10px;
-                }
-                .btn:hover { 
-                    background: white;
-                    color: #667eea;
-                    transform: translateY(-2px);
-                }
-                .status {
-                    margin-top: 2rem;
-                    padding: 1rem;
-                    background: rgba(0,255,0,0.1);
-                    border-radius: 10px;
-                    border: 1px solid rgba(0,255,0,0.3);
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🎉 CultureFix</h1>
-                <p>Your domain <strong>100networks.com</strong> is now live!</p>
-                <div class="status">
-                    <p>✅ Domain configured successfully<br>
-                    🔄 Full application deployment in progress</p>
-                </div>
-                <a href="http://13.62.13.0:3000" class="btn">View Live Application</a>
-                <a href="https://github.com/yash251293/100N-FINAL" class="btn">View Source Code</a>
-                <p style="margin-top: 2rem; font-size: 0.9rem; opacity: 0.7;">
-                    Deployed via GitHub Actions • Static hosting on GitHub Pages
-                </p>
-            </div>
-        </body>
-        </html>
-        EOF
-        
-        # List files to debug
-        echo "Created files:"
-        ls -la static-site/
-
-    - name: Upload artifact
+    - name: Upload to GitHub Pages
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './static-site'
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+        path: site
+        
     - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
       id: deployment
-      uses: actions/deploy-pages@v4 
+      with:
+        token: ${{ github.token }} 
