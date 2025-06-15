@@ -73,7 +73,19 @@ router.get('/me', authMiddleware, async (req, res) => {
         up.location, up.professional_title, up.years_of_experience, up.job_function,
         up.key_skills, up.education_level, up.field_of_study, up.institution,
         up.linkedin_url, up.website_url, up.bio, up.company_type, up.tech_stack,
-        up.created_at AS profile_created_at, up.updated_at AS profile_updated_at
+        up.created_at AS profile_created_at, up.updated_at AS profile_updated_at,
+        -- Individual preferences
+        up.job_status, up.desired_roles, up.work_arrangement, up.experience_level_preference,
+        up.salary_expectation_min, up.salary_expectation_max, up.salary_expectation_currency,
+        up.career_goals, up.preferred_locations,
+        -- Company preferences
+        up.hiring_status, up.offered_employment_types, up.hiring_roles, up.hiring_locations,
+        up.hiring_salary_min, up.hiring_salary_max, up.hiring_salary_currency,
+        -- Culture preferences (individual)
+        up.culture_preferences, up.remote_policy_importance, up.quiet_office_importance,
+        up.ideal_next_job_description,
+        -- Resume
+        up.resume_file_path
       FROM users u
       LEFT JOIN user_profiles up ON u.id = up.user_id
       WHERE u.id = $1;
@@ -111,7 +123,36 @@ router.get('/me', authMiddleware, async (req, res) => {
         company_type: userData.company_type,
         tech_stack: userData.tech_stack,
         profile_created_at: userData.profile_created_at,
-        profile_updated_at: userData.profile_updated_at
+        profile_updated_at: userData.profile_updated_at,
+
+        // Individual preferences
+        job_status: userData.job_status,
+        desired_roles: userData.desired_roles,
+        work_arrangement: userData.work_arrangement,
+        experience_level_preference: userData.experience_level_preference,
+        salary_expectation_min: userData.salary_expectation_min,
+        salary_expectation_max: userData.salary_expectation_max,
+        salary_expectation_currency: userData.salary_expectation_currency,
+        career_goals: userData.career_goals,
+        preferred_locations: userData.preferred_locations,
+
+        // Company preferences
+        hiring_status: userData.hiring_status,
+        offered_employment_types: userData.offered_employment_types,
+        hiring_roles: userData.hiring_roles,
+        hiring_locations: userData.hiring_locations,
+        hiring_salary_min: userData.hiring_salary_min,
+        hiring_salary_max: userData.hiring_salary_max,
+        hiring_salary_currency: userData.hiring_salary_currency,
+
+        // Culture preferences (individual)
+        culture_preferences: userData.culture_preferences,
+        remote_policy_importance: userData.remote_policy_importance,
+        quiet_office_importance: userData.quiet_office_importance,
+        ideal_next_job_description: userData.ideal_next_job_description,
+
+        // Resume
+        resume_file_path: userData.resume_file_path
       }
     };
 
