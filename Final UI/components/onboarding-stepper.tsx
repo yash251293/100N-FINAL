@@ -143,6 +143,7 @@ const stepCompletionCheckers: Record<string, (user: any, userType: string | unde
 export function OnboardingStepper() {
   const pathname = usePathname();
   const { user, isLoading: isAuthLoading } = useAuth();
+  console.log("OnboardingStepper user from useAuth:", JSON.stringify(user, null, 2));
   const userType = user?.user_type;
 
   if (isAuthLoading) {
