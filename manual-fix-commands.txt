@@ -1,0 +1,25 @@
+Connect to server: ssh root@109.199.104.47
+Password: mobiluck
+
+Run these commands one by one:
+
+cd /var/www/culturefix
+pm2 stop all
+pm2 delete all
+npm install -g next@latest
+cd "Final UI"
+npm install --legacy-peer-deps
+npm run build
+cd ../
+cd "Login Signup Landing"
+npm install --legacy-peer-deps
+npm run build
+cd ../backend
+npm install
+cd /var/www/culturefix
+pm2 start ecosystem.config.js --only culturefix-backend
+sleep 5
+pm2 start ecosystem.config.js --only culturefix-frontend-main
+pm2 start ecosystem.config.js --only culturefix-frontend-auth
+pm2 save
+pm2 status 

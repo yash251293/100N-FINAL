@@ -49,7 +49,7 @@ tar -czf culturefix-deploy.tar.gz \
     --exclude='.next' \
     --exclude='*.log' \
     --exclude='backend/uploads' \
-    backend/ "Final UI/" "Login Signup Landing/"
+    backend/ "Final UI/"
 
 # Upload to server
 log_info "Uploading project to server..."
@@ -99,12 +99,6 @@ ENVEOF
     npm run build
     cd ..
     
-    # Setup Login Signup Landing
-    cd "Login Signup Landing"
-    npm install
-    npm run build
-    cd ..
-    
     # Set proper permissions
     chown -R www-data:www-data /var/www/culturefix
     chmod -R 755 /var/www/culturefix
@@ -143,20 +137,6 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000
       }
-    },
-    {
-      name: 'culturefix-frontend-auth',
-      script: 'npm',
-      args: 'start',
-      cwd: './Login Signup Landing',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '1G',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3002
-      }
     }
   ]
 };
@@ -180,20 +160,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-    
-    # Auth/Landing pages
-    location /auth {
-        proxy_pass http://localhost:3002;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_Set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
     
@@ -269,4 +236,8 @@ log_info "4. Check application status: ssh $SERVER_USER@$SERVER_HOST 'pm2 status
 log_info ""
 log_info "Your application should be running at:"
 log_info "- Frontend: http://$SERVER_HOST"
-log_info "- API: http://$SERVER_HOST/api" 
+log_info "- API: http://$SERVER_HOST/api"
+
+# Copy ecosystem.config.js to server
+log_info "Copying ecosystem.config.js to server..."
+pscp.exe -pw mobiluck ecosystem.config.js root@$SERVER_HOST:/var/www/culturefix/ 
