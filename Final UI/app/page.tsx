@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/logo"
 import { ChevronRight } from "lucide-react"
-import { useState } from "react"
+import { useState, useCallback } from "react" // Import useCallback
 import { useRouter } from "next/navigation"
 
 export default function LandingPage() {
   const router = useRouter()
   const [userType, setUserType] = useState<'company' | 'individual'>('company')
 
-  const handleUserTypeSelect = (type: 'company' | 'individual') => {
-    setUserType(type)
-    router.push(`/auth/signup?type=${type}`)
-  }
+  const handleUserTypeSelect = useCallback((type: 'company' | 'individual') => {
+    setUserType(type) // setUserType is stable
+    router.push(`/auth/signup?type=${type}`) // router object from useRouter is stable
+  }, [router, setUserType]) // Dependencies for useCallback
 
   return (
     <div className="flex flex-col min-h-screen bg-white text-brand-text-dark">

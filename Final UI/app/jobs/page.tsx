@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { BookmarkIcon, Filter, Search, Clock, CheckCircle, XCircle, Calendar, Briefcase, MapPin, DollarSign, Building, FileText, ChevronRight, Star, Users, Award, TrendingUp, Zap, Globe, ArrowLeft, X, Send, Upload } from "lucide-react"
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import JobCard from "@/components/jobs/JobCard" // Import JobCard
 
 const appliedJobs = [
   {
@@ -121,12 +122,12 @@ export default function JobsPage() {
     portfolio: null
   })
   
-  const statusCounts = {
+  const statusCounts = useMemo(() => ({
     total: appliedJobs.length,
     pending: appliedJobs.filter(job => job.status === "applied" || job.status === "under_review").length,
     interviews: appliedJobs.filter(job => job.status === "interview_scheduled").length,
     hired: appliedJobs.filter(job => job.status === "accepted").length,
-  }
+  }), []) // Empty dependency array as appliedJobs is static module-level const
 
   const jobs = [
     {
@@ -341,15 +342,15 @@ export default function JobsPage() {
     }
   ]
 
-  const handleJobClick = (job: any) => {
+  const handleJobClick = useCallback((job: any) => {
     setSelectedJob(job)
-  }
+  }, [setSelectedJob])
 
-  const handleApplyClick = () => {
+  const handleApplyClick = useCallback(() => {
     setShowApplicationModal(true)
-  }
+  }, [setShowApplicationModal])
 
-  const handleSubmitApplication = () => {
+  const handleSubmitApplication = useCallback(() => {
     // Handle application submission here
     console.log("Application submitted:", { job: selectedJob?.title, ...applicationData })
     setShowApplicationModal(false)
@@ -360,7 +361,12 @@ export default function JobsPage() {
       resume: null, 
       portfolio: null 
     })
-  }
+  }, [selectedJob, applicationData, setShowApplicationModal, setApplicationData])
+
+  const handleBookmarkJob = useCallback((jobId: string | number) => {
+    // Placeholder for bookmark logic
+    console.log("Bookmarking job:", jobId);
+  }, []);
   
   return (
     <>
@@ -430,7 +436,7 @@ export default function JobsPage() {
               {showFilters && (
                 <CardContent className="space-y-6">
                   {/* Job Type */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Job Type</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -454,12 +460,12 @@ export default function JobsPage() {
                         <label htmlFor="freelance" className="text-sm font-subheading text-slate-600">Freelance</label>
                       </div>
                     </div>
-          </div>
+          </>
 
                   <Separator />
 
                   {/* Experience Level */}
-                      <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Experience Level</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -479,12 +485,12 @@ export default function JobsPage() {
                         <label htmlFor="executive" className="text-sm font-subheading text-slate-600">Executive (10+ years)</label>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Separator />
 
                   {/* Salary Range */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Salary Range</h4>
                     <div className="px-2">
                       <Slider
@@ -500,12 +506,12 @@ export default function JobsPage() {
                         <span>${salaryRange[1].toLocaleString()}</span>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Separator />
 
                   {/* Work Mode */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Work Mode</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -521,12 +527,12 @@ export default function JobsPage() {
                         <label htmlFor="on-site" className="text-sm font-subheading text-slate-600">On-site</label>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Separator />
 
                   {/* Company Size */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Company Size</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -546,12 +552,12 @@ export default function JobsPage() {
                         <label htmlFor="large" className="text-sm font-subheading text-slate-600">Large (1000+ employees)</label>
                       </div>
                 </div>
-              </div>
+              </>
 
                   <Separator />
 
                   {/* Industry */}
-                      <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Industry</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -579,12 +585,12 @@ export default function JobsPage() {
                         <label htmlFor="retail" className="text-sm font-subheading text-slate-600">Retail & E-commerce</label>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Separator />
 
                   {/* Skills & Technologies */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Skills & Technologies</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -612,12 +618,12 @@ export default function JobsPage() {
                         <label htmlFor="sql" className="text-sm font-subheading text-slate-600">SQL</label>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Separator />
 
                   {/* Company Benefits */}
-                  <div>
+                  <>
                     <h4 className="font-subheading font-medium text-primary-navy mb-3">Benefits</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
@@ -641,7 +647,7 @@ export default function JobsPage() {
                         <label htmlFor="learning" className="text-sm font-subheading text-slate-600">Learning & Development</label>
                       </div>
                     </div>
-                  </div>
+                  </>
 
                   <Button className="w-full bg-primary-navy hover:bg-primary-navy/90 text-white rounded-lg font-subheading">
                     Apply Filters
@@ -669,105 +675,17 @@ export default function JobsPage() {
 
           {/* Job Listings */}
           <div className="space-y-4">
-            {jobs.map((job) => {
-              const getRemoteColor = (remote: string) => {
-                switch (remote) {
-                  case "Remote":
-                    return "bg-green-100 text-green-700"
-                  case "Hybrid":
-                    return "bg-blue-100 text-blue-700"
-                  case "On-site":
-                    return "bg-red-100 text-red-700"
-                  default:
-                    return "bg-slate-100 text-slate-700"
-                }
-              }
-
-              return (
-                <Card 
-                  key={job.id}
-                  className="border-slate-200 hover:shadow-lg hover:border-primary-navy/30 transition-all duration-200 group cursor-pointer"
-                  onClick={() => handleJobClick(job)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start space-x-4 mb-4">
-                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0">
-                            <img src={job.logo} alt={job.company} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-xl font-heading text-primary-navy group-hover:text-primary-navy transition-colors line-clamp-1">{job.title}</h3>
-                            <div className="flex items-center space-x-3 text-slate-600 mt-1 text-base">
-                              <div className="flex items-center space-x-1">
-                                <Building className="h-4 w-4" />
-                                <span className="font-subheading truncate">{job.company}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <MapPin className="h-4 w-4" />
-                                <span className="font-subheading truncate">{job.location}</span>
-                              </div>
-                            </div>
-                      </div>
-                    </div>
-                        
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {job.skills.slice(0, 4).map((skill, index) => (
-                            <span 
-                              key={index}
-                              className={`px-3 py-1 rounded-full text-sm font-subheading ${
-                                skill.includes('+') || skill.includes('years') 
-                                  ? 'bg-primary-navy/10 text-primary-navy' 
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                          {job.skills.length > 4 && (
-                            <span className="px-3 py-1 rounded-full text-sm font-subheading bg-slate-100 text-slate-700">
-                              +{job.skills.length - 4} more
-                            </span>
-                          )}
-                    </div>
-                        
-                        <p className="text-slate-600 font-subheading leading-relaxed mb-4 text-base line-clamp-3">
-                          {job.description}
-                        </p>
-                        
-                        <div className="flex items-center justify-between text-base">
-                          <div className="flex items-center space-x-4 text-slate-500">
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="h-4 w-4" />
-                              <span className="font-subheading">{job.salary}</span>
-                            </div>
-                            <span className="font-subheading">{job.type}</span>
-                            <span className={`px-3 py-1 rounded-full text-sm font-subheading ${getRemoteColor(job.remote)}`}>
-                              {job.remote}
-                            </span>
-                          </div>
-                          <span className="text-sm text-slate-400 font-subheading">Posted {job.posted}</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                        className="text-slate-400 hover:text-primary-navy hover:bg-primary-navy/5 rounded-full flex-shrink-0"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                    }}
-                  >
-                    <BookmarkIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-                      </div>
-                    </div>
-                    </div>
+            {jobs.map((job) => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onClick={handleJobClick}
+                onBookmark={handleBookmarkJob}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
                   </div>
 
     {/* Job Details Modal */}
@@ -844,53 +762,53 @@ export default function JobsPage() {
               <Separator />
 
               {/* Job Description */}
-                      <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">Job Description</h3>
                 <p className="text-slate-600 font-subheading leading-relaxed">{selectedJob.fullDescription}</p>
-                      </div>
+              </>
 
               {/* Skills Required */}
-              <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">Skills Required</h3>
                 <div className="flex flex-wrap gap-2">
-                  {selectedJob.skills.map((skill: string, index: number) => (
-                    <Badge key={index} className={`font-subheading ${
+                  {selectedJob.skills.map((skill: string) => (
+                    <Badge key={skill} className={`font-subheading ${
                       skill.includes('+') || skill.includes('years') 
                         ? 'bg-[#0056B3]/10 text-[#0056B3]' 
                         : 'bg-slate-100 text-slate-700'
                     }`}>{skill}</Badge>
                   ))}
                 </div>
-              </div>
+              </>
 
               {/* Requirements */}
-              <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">Requirements</h3>
                 <ul className="space-y-2">
-                  {selectedJob.requirements.map((requirement: string, index: number) => (
-                    <li key={index} className="flex items-start space-x-2">
+                  {selectedJob.requirements.map((requirement: string) => (
+                    <li key={requirement} className="flex items-start space-x-2">
                       <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
                       <span className="text-slate-600 font-subheading">{requirement}</span>
                     </li>
                   ))}
                 </ul>
-          </div>
+          </>
 
               {/* Responsibilities */}
-              <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">Responsibilities</h3>
                 <ul className="space-y-2">
-                  {selectedJob.responsibilities.map((responsibility: string, index: number) => (
-                    <li key={index} className="flex items-start space-x-2">
+                  {selectedJob.responsibilities.map((responsibility: string) => (
+                    <li key={responsibility} className="flex items-start space-x-2">
                       <CheckCircle className="h-4 w-4 text-primary-navy mt-1 flex-shrink-0" />
                       <span className="text-slate-600 font-subheading">{responsibility}</span>
                     </li>
                   ))}
                 </ul>
-          </div>
+          </>
 
               {/* Company Information */}
-              <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">About the Company</h3>
                 <Card className="border-slate-200">
                   <CardContent className="p-4">
@@ -909,8 +827,8 @@ export default function JobsPage() {
                       <div>
                         <h5 className="font-subheading font-medium text-primary-navy mb-2">Benefits</h5>
                         <div className="flex flex-wrap gap-2">
-                          {selectedJob.companyInfo.benefits.map((benefit: string, index: number) => (
-                            <Badge key={index} className="bg-green-50 text-green-700 font-subheading">{benefit}</Badge>
+                          {selectedJob.companyInfo.benefits.map((benefit: string) => (
+                            <Badge key={benefit} className="bg-green-50 text-green-700 font-subheading">{benefit}</Badge>
                           ))}
                         </div>
                       </div>
@@ -921,13 +839,13 @@ export default function JobsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </>
 
               {/* Hiring Manager */}
-              <div>
+              <>
                 <h3 className="text-lg font-heading text-primary-navy mb-3">Hiring Manager</h3>
                 <p className="text-slate-600 font-subheading">{selectedJob.hiringManager}</p>
-              </div>
+              </>
 
               {/* Action Buttons */}
               <div className="flex space-x-4 pt-4">
@@ -959,7 +877,7 @@ export default function JobsPage() {
         
         <div className="space-y-6 mt-4">
           {/* Cover Letter */}
-          <div>
+          <>
             <Label htmlFor="coverLetter" className="font-subheading text-primary-navy">Cover Letter</Label>
             <Textarea
               id="coverLetter"
@@ -968,10 +886,10 @@ export default function JobsPage() {
               onChange={(e) => setApplicationData({...applicationData, coverLetter: e.target.value})}
               className="mt-2 min-h-[120px] rounded-xl font-subheading"
             />
-          </div>
+          </>
 
           {/* Expected Salary */}
-          <div>
+          <>
             <Label htmlFor="expectedSalary" className="font-subheading text-primary-navy">Expected Salary</Label>
             <Input
               id="expectedSalary"
@@ -980,10 +898,10 @@ export default function JobsPage() {
               onChange={(e) => setApplicationData({...applicationData, expectedSalary: e.target.value})}
               className="mt-2 rounded-xl font-subheading"
             />
-          </div>
+          </>
 
           {/* Available Start Date */}
-          <div>
+          <>
             <Label htmlFor="availableStartDate" className="font-subheading text-primary-navy">Available Start Date</Label>
             <Input
               id="availableStartDate"
@@ -992,10 +910,10 @@ export default function JobsPage() {
               onChange={(e) => setApplicationData({...applicationData, availableStartDate: e.target.value})}
               className="mt-2 rounded-xl font-subheading"
             />
-          </div>
+          </>
 
           {/* Resume Upload */}
-          <div>
+          <>
             <Label htmlFor="resume" className="font-subheading text-primary-navy">Resume/CV</Label>
             <div className="mt-2 border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
               <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
@@ -1006,10 +924,10 @@ export default function JobsPage() {
                 PDF, DOC, or DOCX files up to 5MB
               </p>
             </div>
-              </div>
+              </>
 
           {/* Portfolio/Additional Materials */}
-          <div>
+          <>
             <Label htmlFor="portfolio" className="font-subheading text-primary-navy">Portfolio/Additional Materials (Optional)</Label>
             <div className="mt-2 border-2 border-dashed border-slate-300 rounded-xl p-6 text-center">
               <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
@@ -1020,7 +938,7 @@ export default function JobsPage() {
                 PDF, DOC, images, or ZIP files up to 10MB
               </p>
             </div>
-          </div>
+          </>
 
           {/* Job Information Summary */}
           {selectedJob && (
