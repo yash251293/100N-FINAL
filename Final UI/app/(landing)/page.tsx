@@ -70,11 +70,12 @@ export default function LandingPage() {
             </div>
             <div>
               <Image
-                src="/image21.png?width=600&height=500"
+                src="/image21.png"
                 alt="Hero Illustration"
                 width={580}
                 height={500}
                 className="rounded-lg"
+                priority
               />
             </div>
           </div>
@@ -110,7 +111,7 @@ export default function LandingPage() {
                 <Card key={index} className="text-center bg-white shadow-md rounded-lg p-6">
                   <CardHeader className="p-0 mb-4">
                     <Image
-                      src={step.icon || "/icon4.png?width=60&height=60&query=abstract+icon"}
+                      src={step.icon ? step.icon.split('?')[0] : "/icon4.png"}
                       alt={`${step.title} icon`}
                       width={60}
                       height={60}
@@ -158,7 +159,7 @@ export default function LandingPage() {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-12 items-center">
               <div className={` ${feature.imgLeft ? "md:order-2" : ""}`}>
                 <Image
-                  src={feature.icon || "/placeholder.svg?width=60&height=60&query=feature+icon"}
+                  src={feature.icon ? feature.icon.split('?')[0] : "/placeholder.svg"}
                   alt="Feature Icon"
                   width={60}
                   height={60}
@@ -174,7 +175,7 @@ export default function LandingPage() {
               </div>
               <div className={`flex justify-center ${feature.imgLeft ? "md:order-1" : ""}`}>
                 <Image
-                  src={feature.image || "/placeholder.svg"}
+                  src={feature.image ? feature.image.split('?')[0] : "/placeholder.svg"}
                   alt={feature.title}
                   width={500}
                   height={400}

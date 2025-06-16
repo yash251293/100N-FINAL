@@ -48,7 +48,7 @@ export default function ProfilePage() {
               {/* Profile Picture */}
               <div className="relative mb-6 lg:mb-0 -mt-16">
                 <Avatar className="h-36 w-36 border-4 border-white shadow-xl">
-                  <AvatarImage src="/professional-user-avatar.png" alt="Alex Johnson" />
+                  <AvatarImage src="/professional-user-avatar.png" alt="Alex Johnson" priority />
                   <AvatarFallback className="text-2xl font-heading bg-gradient-to-br from-primary-navy to-[#0056B3] text-white">AJ</AvatarFallback>
                 </Avatar>
                 <Button
