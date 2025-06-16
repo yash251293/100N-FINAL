@@ -46,6 +46,7 @@ export default function RootLayout({
   // Define paths that should NOT be protected by ProtectedRoute
   // (Landing page / is handled by its own (landing)/layout.tsx)
   const publicPaths = [
+    '/', // Add the root path
     '/auth/login',
     '/auth/signup',
     // Add other public paths if any, e.g., /auth/forgot-password
