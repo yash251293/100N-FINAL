@@ -165,9 +165,8 @@ export default function Header() {
           ) : (
             <>
               {/* Buttons to show if user is not logged in AND not loading */}
-              {/* Buttons to show if user is not logged in AND not loading */}
-              <Button variant="outline" asChild><Link href="/auth/login">Login</Link></Button>
-              <Button asChild className="ml-2"><Link href="/auth/signup">Sign Up</Link></Button> {/* Added ml-2 for spacing */}
+              {/* <Button variant="outline" asChild><Link href="/auth/login">Login</Link></Button> */}
+              {/* <Button asChild className="ml-2"><Link href="/auth/signup">Sign Up</Link></Button> */}
             </>
           )}
         </div>
