@@ -43,33 +43,26 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
 
-  // Define paths that should NOT be protected by ProtectedRoute
-  // (Landing page / is handled by its own (landing)/layout.tsx)
+  const purelyAuthPaths = ['/auth/login', '/auth/signup']; // Paths that should NEVER show main header
+  const isPurelyAuthPath = purelyAuthPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/auth/onboarding');
+
+  // Logic for pages that are public but might still show a header (like landing page)
   const publicPaths = [
-    '/', // Add the root path
-    '/auth/login',
-    '/auth/signup',
+    '/',
+    '/auth/login', // Will be excluded by isPurelyAuthPath for header
+    '/auth/signup', // Will be excluded by isPurelyAuthPath for header
     // Add other public paths if any, e.g., /auth/forgot-password
   ];
+  const isPublicContentPath = publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/auth/onboarding');
 
-  // Onboarding paths might be considered semi-protected (user exists but might not be fully "active")
-  // For now, let's treat them as needing protection after initial signup redirect.
-  // Or, if they are part of the public flow before full login, list them here.
-  // For this iteration, onboarding pages will be protected by default if not listed.
-  // e.g. if pathname.startsWith('/auth/onboarding') it would be public
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/auth/onboarding');
+  // Determine if the main header should be shown
+  // Show header if NOT a pure auth path (login, signup, onboarding)
+  // This means it will show for '/' and all protected routes.
+  const showMainHeader = !isPurelyAuthPath;
 
-
-  // The actual page content that needs protection or public access
   const pageContent = (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* HeaderWrapper might also need to be auth-aware or path-aware
-          if we don't want to show any header on /auth pages */}
-      {!isPublicPath && <HeaderWrapper />}
-      {/* Or, if HeaderWrapper is always shown, Header component itself is now auth-aware */}
-      {/* Let's try hiding HeaderWrapper on public auth paths for a cleaner look */}
-      {/* If HeaderWrapper is always needed, then Header component itself handles its display logic */}
-
+      {showMainHeader && <HeaderWrapper />}
       <main className="flex-1 px-4 py-3">{children}</main>
     </div>
   );
@@ -78,14 +71,14 @@ export default function RootLayout({
     <html lang="en" className="light">
       <body className={`${inter.className} ${lora.variable} ${abhayaLibre.variable}`}>
         <AuthProvider>
-          {isPublicPath ? (
-            pageContent // Render auth pages (login, signup, onboarding) directly
+          {isPublicContentPath ? ( // This determines if <ProtectedRoute> is used
+            pageContent
           ) : (
             <ProtectedRoute>
               {pageContent} {/* Wrap other app pages with ProtectedRoute */}
             </ProtectedRoute>
           )}
-              <Toaster richColors position="top-right" /> {/* Toaster added here */}
+          <Toaster richColors position="top-right" /> {/* Toaster added here */}
         </AuthProvider>
       </body>
     </html>

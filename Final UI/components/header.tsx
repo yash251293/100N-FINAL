@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 // Button component is not directly used in the modified version for user actions, but might be for other things.
-// import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"; // Ensure this line is present and uncommented
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
@@ -165,11 +165,9 @@ export default function Header() {
           ) : (
             <>
               {/* Buttons to show if user is not logged in AND not loading */}
-              {/* These might not be desired if HeaderWrapper handles when to show this header */}
-              {/* For now, let's assume HeaderWrapper shows this header only when appropriate */}
-              {/* Or, if this header is always shown, we'd add Login/Signup buttons here */}
-              {/* <Button variant="outline" asChild><Link href="/auth/login">Login</Link></Button> */}
-              {/* <Button asChild><Link href="/auth/signup">Sign Up</Link></Button> */}
+              {/* Buttons to show if user is not logged in AND not loading */}
+              <Button variant="outline" asChild><Link href="/auth/login">Login</Link></Button>
+              <Button asChild className="ml-2"><Link href="/auth/signup">Sign Up</Link></Button> {/* Added ml-2 for spacing */}
             </>
           )}
         </div>
