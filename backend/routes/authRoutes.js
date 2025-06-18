@@ -77,11 +77,29 @@ router.post('/register', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error during registration:', error);
-    if (error.code === '23505') {
-         return res.status(409).json({ message: 'User with this email already exists (constraint error).' });
+    console.error('Detailed error during registration:', error); // Log the full error object
+
+    if (error.code) { // Check if it's a pg error with a code
+      console.error(`Database Error Code: ${error.code}, Routine: ${error.routine}`); // Log more pg details
+      if (error.code === '23505') {
+         return res.status(409).json({ message: 'User with this email already exists (database constraint).' });
+      }
+      // Example pg connection error codes:
+      // '08001' - sqlclient_unable_to_establish_sqlconnection
+      // '08006' - connection_failure
+      // '28P01' - invalid_password (for DB user)
+      // Add more specific checks if certain pg error codes are common for connection issues
+      if (['08001', '08006', 'ECONNREFUSED', 'ENOTFOUND', 'ETIMEOUT'].includes(error.code) ||
+          (error.message && (error.message.toLowerCase().includes('connect econrefused') || // Note: ECONNREFUSED is typically error.syscall or error.code for network errors, not error.message directly for pg
+                             error.message.toLowerCase().includes('timeout') ||
+                             error.message.toLowerCase().includes('database system is starting up')))) {
+        return res.status(503).json({ message: 'Database connection error or database unavailable. Please try again later.' });
+      }
+      return res.status(500).json({ message: 'A database error occurred during registration. Please check server logs.'});
     }
-    res.status(500).json({ message: 'Server error during registration.' });
+
+    // Default server error if not a recognizable DB error
+    res.status(500).json({ message: 'Server error during registration. Please check server logs for more details.' });
   }
 });
 

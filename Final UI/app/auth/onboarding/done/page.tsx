@@ -1,7 +1,7 @@
 "use client"
 
-import type React from "react" // Kept for clarity, though Suspense also implies React
-import { Suspense } from "react" // Added for Suspense boundary
+import type React from "react";
+import { Suspense } from "react"; // Ensured Suspense is imported
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,12 +11,11 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-// Helper functions for completion status (can be moved to a utils file if shared)
+// Helper functions (copied from the previous good version of the file)
 const isEmailVerified = (user: any): boolean => {
   if (!user) return false;
-  return !!user.profile || !!user.company_name || !!user.full_name; // Proxy
+  return !!user.profile || !!user.company_name || !!user.full_name;
 };
-
 const isProfileComplete = (user: any, userType: string | undefined): boolean => {
   if (!user || !userType) return false;
   const profile = user.profile;
@@ -28,7 +27,6 @@ const isProfileComplete = (user: any, userType: string | undefined): boolean => 
   }
   return false;
 };
-
 const isPreferencesComplete = (user: any, userType: string | undefined): boolean => {
   if (!user?.profile || !userType) return false;
   const profile = user.profile;
@@ -40,18 +38,15 @@ const isPreferencesComplete = (user: any, userType: string | undefined): boolean
   }
   return false;
 };
-
 const isCultureComplete = (user: any, userType: string | undefined): boolean => {
   if (userType !== 'individual' || !user?.profile) return false;
   const profile = user.profile;
   return !!(profile.ideal_next_job_description || (profile.culture_preferences && profile.culture_preferences.length > 0));
 };
-
 const isResumeComplete = (user: any, userType: string | undefined): boolean => {
   if (userType !== 'individual' || !user?.profile) return false;
   return !!user.profile.resume_file_path;
 };
-
 const stepCompletionCheckers: Record<string, (user: any, userType: string | undefined) => boolean> = {
   "/auth/onboarding/verify-email": isEmailVerified,
   "/auth/onboarding/profile": isProfileComplete,
@@ -60,6 +55,7 @@ const stepCompletionCheckers: Record<string, (user: any, userType: string | unde
   "/auth/onboarding/resume": isResumeComplete,
 };
 
+// Inner component that uses the hooks
 function OnboardingDonePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -73,7 +69,6 @@ function OnboardingDonePageContent() {
     { name: "Culture", href: "/auth/onboarding/culture", shortName: "Work Culture" },
     { name: "Resume/CV", href: "/auth/onboarding/resume", shortName: "Resume" },
   ];
-
   const localCompanySteps = [
     { name: "Verify Email", href: "/auth/onboarding/verify-email", shortName: "Email" },
     { name: "Company Profile", href: "/auth/onboarding/profile", shortName: "Company Info" },
@@ -89,14 +84,13 @@ function OnboardingDonePageContent() {
   if (!user) {
     toast.error("User data not available. Redirecting to login.");
     if (typeof window !== 'undefined') {
-        router.push('/auth/login');
+      router.push('/auth/login');
     }
     return <div className="min-h-screen flex items-center justify-center">User data not available. Please try logging in again.</div>;
   }
 
   const currentStepsData = finalUserType === 'company' ? localCompanySteps : localIndividualSteps;
   const totalDataSteps = currentStepsData.length;
-
   let trulyCompletedDataSteps = 0;
   const stepCompletionStatus: Array<{ name: string; shortName: string; href: string; isComplete: boolean }> = [];
 
@@ -117,7 +111,6 @@ function OnboardingDonePageContent() {
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg mb-6">
@@ -133,13 +126,11 @@ function OnboardingDonePageContent() {
             }
           </p>
         </div>
-
         <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-brand-text-dark">Profile Completion Status</h2>
             <span className="text-2xl font-bold text-black">{newCompletionPercentage}%</span>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {stepCompletionStatus.map(step => (
               <div className="flex items-center space-x-3" key={step.href}>
@@ -154,7 +145,6 @@ function OnboardingDonePageContent() {
               </div>
             ))}
           </div>
-
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <div
               className="h-3 bg-gradient-to-r from-black to-green-500 rounded-full transition-all duration-700 ease-out"
@@ -162,7 +152,6 @@ function OnboardingDonePageContent() {
             />
           </div>
         </div>
-
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-brand-text-dark mb-6 flex items-center">
             <SparklesIcon className="w-5 h-5 text-black mr-2" />
@@ -171,7 +160,6 @@ function OnboardingDonePageContent() {
               : 'Complete Your Professional Profile to Find Amazing Opportunities'
             }
           </h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {finalUserType === 'company' ? (
               <>
@@ -182,7 +170,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">Add your company's mission, vision, and values</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <BriefcaseIcon className="w-5 h-5 text-gray-400" />
@@ -190,7 +177,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">List your current job openings and requirements</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <UsersIcon className="w-5 h-5 text-gray-400" />
@@ -198,7 +184,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">Showcase your team and company culture</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <StarIcon className="w-5 h-5 text-gray-400" />
@@ -216,7 +201,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">Add your professional experience and achievements</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <StarIcon className="w-5 h-5 text-gray-400" />
@@ -224,7 +208,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">Showcase your skills and educational background</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <UsersIcon className="w-5 h-5 text-gray-400" />
@@ -232,7 +215,6 @@ function OnboardingDonePageContent() {
                   </div>
                   <p className="text-sm text-brand-text-medium">Tell your professional story and aspirations</p>
                 </div>
-
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center space-x-3 mb-2">
                     <BuildingIcon className="w-5 h-5 text-gray-400" />
@@ -244,7 +226,6 @@ function OnboardingDonePageContent() {
             )}
           </div>
         </div>
-
         <div className="bg-gradient-to-r from-black to-gray-800 p-6 rounded-xl text-white text-center mb-6">
           <h3 className="text-lg font-semibold mb-2">
             {finalUserType === 'company' ? 'Ready to attract top talent?' : 'Ready to find your dream job?'}
@@ -265,7 +246,6 @@ function OnboardingDonePageContent() {
             </Link>
           </Button>
         </div>
-
         <div className="text-center">
           <Button
             variant="outline"
@@ -277,9 +257,10 @@ function OnboardingDonePageContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
+// Default export wrapping the content component with Suspense
 export default function OnboardingDonePage() {
   return (
     <Suspense fallback={<div>Loading onboarding completion...</div>}>

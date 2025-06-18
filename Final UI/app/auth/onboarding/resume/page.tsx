@@ -1,37 +1,36 @@
 "use client"
 
+import type React from "react";
+import { Suspense, useState, useRef, ChangeEvent } from "react"; // Added Suspense
+
 import { Button } from "@/components/ui/button"
 import { UploadCloudIcon } from "lucide-react"
 import Link from "next/link"
-import { useSearchParams, useRouter } from "next/navigation" // Added useRouter
+import { useSearchParams, useRouter } from "next/navigation"
 import { OnboardingStepper } from "@/components/onboarding-stepper"
-import { useState, useRef, ChangeEvent } from "react"
 import { toast } from "sonner"
-import { useAuth } from "@/context/AuthContext" // Added useAuth
-import { uploadUserResume } from "@/lib/api" // Added uploadUserResume
+import { useAuth } from "@/context/AuthContext"
+import { uploadUserResume } from "@/lib/api"
 
-export default function ResumePage() {
+function ResumePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth(); // Updated useAuth
-
-  // const userType = searchParams.get('type') || user?.user_type || 'individual'; // Old userType, will be replaced by finalUserType
+  const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false); // State for upload progress
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setFileError(null); // Clear previous error
+    setFileError(null);
     const file = event.target.files?.[0];
     if (file) {
-      // Basic client-side validation (example: size and type)
       const allowedTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/rtf", "text/plain"];
       if (!allowedTypes.includes(file.type)) {
         setFileError("Invalid file type. Please upload a PDF, DOC, DOCX, RTF, or TXT file.");
         setSelectedFile(null);
-        if (fileInputRef.current) { // Clear the file input
+        if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
         return;
@@ -39,7 +38,7 @@ export default function ResumePage() {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit example
         setFileError("File is too large. Maximum size is 5MB.");
         setSelectedFile(null);
-        if (fileInputRef.current) { // Clear the file input
+        if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
         return;
@@ -89,7 +88,7 @@ export default function ResumePage() {
           <Button
             onClick={() => fileInputRef.current?.click()}
             className="bg-black hover:bg-gray-900 text-white font-medium"
-            type="button" // Ensure it's not type="submit" if inside a form later
+            type="button"
           >
             Upload Resume
           </Button>
@@ -113,8 +112,7 @@ export default function ResumePage() {
               try {
                 await uploadUserResume(formData, token);
                 toast.success("Resume uploaded successfully!");
-                // Optionally refetch user if resume info is part of user context/profile display
-                await refetchUser();
+                if (refetchUser) await refetchUser();
                 router.push(`/auth/onboarding/done?type=${finalUserType}`);
               } catch (error: any) {
                 toast.error("Resume upload failed: " + (error.data?.message || error.message));
@@ -131,7 +129,6 @@ export default function ResumePage() {
 
         <Button
           variant="outline"
-          // Add some margin if Save Resume button is present
           className={`w-full sm:w-auto border-brand-border text-brand-text-medium hover:bg-brand-bg-light-gray font-medium ${selectedFile && !fileError ? 'mt-3' : 'mt-0'}`}
           asChild
         >
@@ -140,4 +137,12 @@ export default function ResumePage() {
       </div>
     </div>
   )
+}
+
+export default function ResumePage() {
+  return (
+    <Suspense fallback={<div>Loading resume page...</div>}>
+      <ResumePageContent />
+    </Suspense>
+  );
 }
