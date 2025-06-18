@@ -1,17 +1,18 @@
 "use client"
 
 import type React from "react"
+import { Suspense } from "react" // Added for Suspense
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-// import { useState } from "react" // useState will be partially replaced by RHF
-import { useState, useEffect } from "react"; // Keep useState for culturePrefsInitial, useEffect for defaultValues
+import { useState, useEffect } from "react";
 import { CheckCircle, HeartIcon, UsersIcon, BrainCircuitIcon } from "lucide-react"
-import Link from "next/link" // Will be removed from submit button if using router.push from onSubmit
+// Link component was previously imported but not used in the final submit button logic, so removing it.
+// import Link from "next/link"
 import { OnboardingStepper } from "@/components/onboarding-stepper"
-import { useSearchParams, useRouter } from "next/navigation" // Added useRouter
+import { useSearchParams, useRouter } from "next/navigation"
 
 // RHF and Zod imports
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
@@ -19,7 +20,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { updateUserCulture } from "@/lib/api"; // Placeholder for API function
+import { updateUserCulture } from "@/lib/api";
 
 // Zod Schema Definition
 const cultureSchema = z.object({
@@ -86,14 +87,11 @@ const ImportanceButtonGroup: React.FC<ImportanceButtonGroupProps> = ({ selectedV
   </div>
 )
 
-export default function CulturePage() {
-  // All hooks are now at the top
+function CulturePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth();
 
-  // culturePrefsInitial is used for defaultValues and for rendering ToggleChip components.
-  // It's defined here as it's static configuration for this form.
   const culturePrefsInitial = [
     { id: "say-in-work", label: "Having autonomy in how I work", selected: true },
     { id: "growth-opportunities", label: "Clear career advancement paths", selected: true },
@@ -115,11 +113,9 @@ export default function CulturePage() {
     control,
     formState: { errors, isSubmitting },
     watch,
-    reset, // Added reset for potential dynamic updates based on user data
+    reset,
   } = useForm<CultureFormValues>({
     resolver: zodResolver(cultureSchema),
-    // Default values are set here. If these fields were meant to be populated from `user.profile`
-    // upon loading, a useEffect hook with `reset()` would be used (see commented example below).
     defaultValues: {
       culturePrefs: culturePrefsInitial.filter(p => p.selected).map(p => p.label),
       remotePolicyImportance: "Not important",
@@ -128,28 +124,8 @@ export default function CulturePage() {
     },
   });
 
-  const watchedDescription = watch("nextJobDescription", ""); // watch is called after useForm
+  const watchedDescription = watch("nextJobDescription", "");
 
-  // Example useEffect for populating form from user data (if needed for these fields):
-  // useEffect(() => {
-  //   if (user && user.profile) {
-  //     // Example: Assuming user.profile might store some of these preferences
-  //     const newDefaults: Partial<CultureFormValues> = {};
-  //     if (user.profile.culture_preferences_from_backend) { // Replace with actual field name
-  //       newDefaults.culturePrefs = user.profile.culture_preferences_from_backend;
-  //     }
-  //     if (user.profile.remote_importance_from_backend) { // Replace with actual field name
-  //       newDefaults.remotePolicyImportance = user.profile.remote_importance_from_backend;
-  //     }
-  //     // ... and so on for other fields
-  //
-  //     if (Object.keys(newDefaults).length > 0) {
-  //       reset(prevDefaults => ({ ...prevDefaults, ...newDefaults }));
-  //     }
-  //   }
-  // }, [user, reset]);
-
-  // Loading and Guard State - now after all hook calls
   if (isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
   }
@@ -164,7 +140,7 @@ export default function CulturePage() {
     return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
   }
 
-  const finalUserType = 'individual'; // This page is only for individuals
+  const finalUserType = 'individual';
 
 
   const onSubmit: SubmitHandler<CultureFormValues> = async (data) => {
@@ -172,31 +148,23 @@ export default function CulturePage() {
       toast.error("Authentication token not found. Please log in again.");
       return;
     }
-
-    // The data parameter already contains the validated form values as per cultureSchema
-    // { culturePrefs: string[], remotePolicyImportance: string, quietOfficeImportance: string, nextJobDescription: string }
-
     try {
       await updateUserCulture(data, token);
       toast.success("Culture preferences saved successfully!");
 
-      if (refetchUser) { // Ensure refetchUser is available
-        await refetchUser(); // Refetch user data to update context
+      if (refetchUser) {
+        await refetchUser();
       }
-
-      router.push(`/auth/onboarding/resume?type=${finalUserType}`); // Use finalUserType
+      router.push(`/auth/onboarding/resume?type=${finalUserType}`);
 
     } catch (error: any) {
       toast.error("Failed to save culture preferences: " + (error.data?.message || error.message));
     }
   };
 
-  // The conditional rendering block for non-individual users is removed due to the guard above.
-
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-
       <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-brand-text-dark mb-3">What motivates you at work?</h1>
@@ -335,4 +303,12 @@ export default function CulturePage() {
       </div>
     </div>
   )
+}
+
+export default function CulturePage() {
+  return (
+    <Suspense fallback={<div>Loading culture preferences...</div>}>
+      <CulturePageContent />
+    </Suspense>
+  );
 }
