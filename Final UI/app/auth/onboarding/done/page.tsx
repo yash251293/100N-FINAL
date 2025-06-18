@@ -1,86 +1,84 @@
 "use client"
 
+import type React from "react" // Kept for clarity, though Suspense also implies React
+import { Suspense } from "react" // Added for Suspense boundary
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, SparklesIcon, BuildingIcon, BriefcaseIcon, UsersIcon, StarIcon } from "lucide-react"
 import { OnboardingStepper } from "@/components/onboarding-stepper"
-import { useSearchParams, useRouter } from "next/navigation" // Added useRouter
-import { useAuth } from "@/context/AuthContext"; // Added useAuth
-import { toast } from "sonner"; // Added toast
+import { useSearchParams, useRouter } from "next/navigation"
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
-export default function OnboardingDonePage() {
+// Helper functions for completion status (can be moved to a utils file if shared)
+const isEmailVerified = (user: any): boolean => {
+  if (!user) return false;
+  return !!user.profile || !!user.company_name || !!user.full_name; // Proxy
+};
+
+const isProfileComplete = (user: any, userType: string | undefined): boolean => {
+  if (!user || !userType) return false;
+  const profile = user.profile;
+  if (userType === 'individual') {
+    return !!(user.full_name && (profile?.location || profile?.professional_title || profile?.bio));
+  }
+  if (userType === 'company') {
+    return !!(user.company_name && (profile?.location || profile?.company_type || profile?.bio));
+  }
+  return false;
+};
+
+const isPreferencesComplete = (user: any, userType: string | undefined): boolean => {
+  if (!user?.profile || !userType) return false;
+  const profile = user.profile;
+  if (userType === 'individual') {
+    return !!(profile.job_status || (profile.desired_roles && profile.desired_roles.length > 0) || profile.work_arrangement || profile.experience_level_preference);
+  }
+  if (userType === 'company') {
+    return !!(profile.hiring_status || (profile.hiring_roles && profile.hiring_roles.length > 0));
+  }
+  return false;
+};
+
+const isCultureComplete = (user: any, userType: string | undefined): boolean => {
+  if (userType !== 'individual' || !user?.profile) return false;
+  const profile = user.profile;
+  return !!(profile.ideal_next_job_description || (profile.culture_preferences && profile.culture_preferences.length > 0));
+};
+
+const isResumeComplete = (user: any, userType: string | undefined): boolean => {
+  if (userType !== 'individual' || !user?.profile) return false;
+  return !!user.profile.resume_file_path;
+};
+
+const stepCompletionCheckers: Record<string, (user: any, userType: string | undefined) => boolean> = {
+  "/auth/onboarding/verify-email": isEmailVerified,
+  "/auth/onboarding/profile": isProfileComplete,
+  "/auth/onboarding/preferences": isPreferencesComplete,
+  "/auth/onboarding/culture": isCultureComplete,
+  "/auth/onboarding/resume": isResumeComplete,
+};
+
+function OnboardingDonePageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const queryUserType = searchParams.get('type'); // Keep for potential fallback if needed initially
+  const queryUserType = searchParams.get('type');
 
-  // --- Start of new logic based on OnboardingStepper ---
-
-  // Simplified step definitions (name, shortName, href are key)
   const localIndividualSteps = [
     { name: "Verify Email", href: "/auth/onboarding/verify-email", shortName: "Email" },
     { name: "Profile", href: "/auth/onboarding/profile", shortName: "Profile" },
     { name: "Preferences", href: "/auth/onboarding/preferences", shortName: "Preferences" },
-    { name: "Culture", href: "/auth/onboarding/culture", shortName: "Work Culture" }, // Adjusted shortName for display
+    { name: "Culture", href: "/auth/onboarding/culture", shortName: "Work Culture" },
     { name: "Resume/CV", href: "/auth/onboarding/resume", shortName: "Resume" },
-    // No "Complete" meta-step here for calculation
   ];
 
   const localCompanySteps = [
     { name: "Verify Email", href: "/auth/onboarding/verify-email", shortName: "Email" },
-    { name: "Company Profile", href: "/auth/onboarding/profile", shortName: "Company Info" }, // Adjusted shortName
-    { name: "Preferences", href: "/auth/onboarding/preferences", shortName: "Hiring Preferences" }, // Adjusted shortName
-    // No "Complete" meta-step here for calculation
+    { name: "Company Profile", href: "/auth/onboarding/profile", shortName: "Company Info" },
+    { name: "Preferences", href: "/auth/onboarding/preferences", shortName: "Hiring Preferences" },
   ];
-
-  // Locally defined completion checker functions (same logic as in OnboardingStepper)
-  const isEmailVerified = (user: any): boolean => {
-    if (!user) return false;
-    return !!user.profile || !!user.company_name || !!user.full_name; // Proxy
-  };
-
-  const isProfileComplete = (user: any, userType: string | undefined): boolean => {
-    if (!user || !userType) return false;
-    const profile = user.profile;
-    if (userType === 'individual') {
-      return !!(user.full_name && (profile?.location || profile?.professional_title || profile?.bio));
-    }
-    if (userType === 'company') {
-      return !!(user.company_name && (profile?.location || profile?.company_type || profile?.bio));
-    }
-    return false;
-  };
-
-  const isPreferencesComplete = (user: any, userType: string | undefined): boolean => {
-    if (!user?.profile || !userType) return false;
-    const profile = user.profile;
-    if (userType === 'individual') {
-      return !!(profile.job_status || (profile.desired_roles && profile.desired_roles.length > 0) || profile.work_arrangement || profile.experience_level_preference);
-    }
-    if (userType === 'company') {
-      return !!(profile.hiring_status || (profile.hiring_roles && profile.hiring_roles.length > 0));
-    }
-    return false;
-  };
-
-  const isCultureComplete = (user: any, userType: string | undefined): boolean => {
-    if (userType !== 'individual' || !user?.profile) return false;
-    const profile = user.profile;
-    return !!(profile.ideal_next_job_description || (profile.culture_preferences && profile.culture_preferences.length > 0));
-  };
-
-  const isResumeComplete = (user: any, userType: string | undefined): boolean => {
-    if (userType !== 'individual' || !user?.profile) return false;
-    return !!user.profile.resume_file_path;
-  };
-
-  const stepCompletionCheckers: Record<string, (user: any, userType: string | undefined) => boolean> = {
-    "/auth/onboarding/verify-email": isEmailVerified,
-    "/auth/onboarding/profile": isProfileComplete,
-    "/auth/onboarding/preferences": isPreferencesComplete,
-    "/auth/onboarding/culture": isCultureComplete,
-    "/auth/onboarding/resume": isResumeComplete,
-  };
 
   if (isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
@@ -88,7 +86,7 @@ export default function OnboardingDonePage() {
 
   const finalUserType = user?.user_type || queryUserType || 'individual';
 
-  if (!user) { // User object from useAuth is the primary source of truth
+  if (!user) {
     toast.error("User data not available. Redirecting to login.");
     if (typeof window !== 'undefined') {
         router.push('/auth/login');
@@ -97,7 +95,7 @@ export default function OnboardingDonePage() {
   }
 
   const currentStepsData = finalUserType === 'company' ? localCompanySteps : localIndividualSteps;
-  const totalDataSteps = currentStepsData.length; // All defined steps are data steps here
+  const totalDataSteps = currentStepsData.length;
 
   let trulyCompletedDataSteps = 0;
   const stepCompletionStatus: Array<{ name: string; shortName: string; href: string; isComplete: boolean }> = [];
@@ -115,8 +113,6 @@ export default function OnboardingDonePage() {
   });
 
   const newCompletionPercentage = totalDataSteps > 0 ? Math.round((trulyCompletedDataSteps / totalDataSteps) * 100) : 0;
-
-  // --- End of new logic ---
 
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
@@ -138,7 +134,6 @@ export default function OnboardingDonePage() {
           </p>
         </div>
 
-        {/* Progress Overview */}
         <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-xl border border-blue-200 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-brand-text-dark">Profile Completion Status</h2>
@@ -151,7 +146,7 @@ export default function OnboardingDonePage() {
                 {step.isComplete ? (
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
                 ) : (
-                  <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0" /> // Placeholder for incomplete
+                  <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0" />
                 )}
                 <span className={`text-sm font-medium ${step.isComplete ? 'text-brand-text-dark' : 'text-gray-400'}`}>
                   {step.shortName}
@@ -168,7 +163,6 @@ export default function OnboardingDonePage() {
           </div>
         </div>
 
-        {/* What's Missing */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-brand-text-dark mb-6 flex items-center">
             <SparklesIcon className="w-5 h-5 text-black mr-2" />
@@ -251,7 +245,6 @@ export default function OnboardingDonePage() {
           </div>
         </div>
 
-        {/* CTA Section */}
         <div className="bg-gradient-to-r from-black to-gray-800 p-6 rounded-xl text-white text-center mb-6">
           <h3 className="text-lg font-semibold mb-2">
             {finalUserType === 'company' ? 'Ready to attract top talent?' : 'Ready to find your dream job?'}
@@ -273,7 +266,6 @@ export default function OnboardingDonePage() {
           </Button>
         </div>
 
-        {/* Skip Option */}
         <div className="text-center">
           <Button
             variant="outline"
@@ -286,4 +278,12 @@ export default function OnboardingDonePage() {
       </div>
     </div>
   )
+}
+
+export default function OnboardingDonePage() {
+  return (
+    <Suspense fallback={<div>Loading onboarding completion...</div>}>
+      <OnboardingDonePageContent />
+    </Suspense>
+  );
 }
