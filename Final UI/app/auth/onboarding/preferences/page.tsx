@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { useState, Suspense } from "react" // ADD Suspense here
 import { XIcon, CheckIcon, DollarSignIcon, BriefcaseIcon, MapPinIcon, BuildingIcon, UsersIcon, UserIcon, TargetIcon } from "lucide-react"
-import Link from "next/link"
+// Link component is not used in the provided PreferencesContent, but kept if it was intended for future use or sub-components
+// import Link from "next/link"
 import { OnboardingStepper } from "@/components/onboarding-stepper"
 import { useSearchParams } from "next/navigation"
 
@@ -42,11 +43,13 @@ const individualPreferencesSchema = z.object({
   workArrangement: z.string().optional(),
   experienceLevel: z.string().optional(),
   salaryExpectationMin: z.preprocess(val => {
-    const parsed = parseInt(z.string().parse(val), 10);
+    const parsedVal = typeof val === 'string' ? val.replace(/[^0-9]/g, '') : val; // Remove non-numeric chars
+    const parsed = parseInt(z.string().parse(parsedVal), 10);
     return isNaN(parsed) ? undefined : parsed;
   }, z.number().positive().optional()),
   salaryExpectationMax: z.preprocess(val => {
-    const parsed = parseInt(z.string().parse(val), 10);
+    const parsedVal = typeof val === 'string' ? val.replace(/[^0-9]/g, '') : val; // Remove non-numeric chars
+    const parsed = parseInt(z.string().parse(parsedVal), 10);
     return isNaN(parsed) ? undefined : parsed;
   }, z.number().positive().optional()),
   salaryExpectationCurrency: z.string().optional(),
@@ -56,21 +59,22 @@ const individualPreferencesSchema = z.object({
 
 const companyPreferencesSchema = z.object({
   hiringStatus: z.string().optional(),
-  employmentType: z.string().optional(), // Current UI suggests single select. If multi-select, then z.array(z.string())
-  roles: z.array(z.string()).optional(), // Roles company is hiring for
-  companyLocations: z.array(z.string()).optional(), // Locations company is hiring in (renamed to avoid conflict)
+  employmentType: z.string().optional(),
+  roles: z.array(z.string()).optional(),
+  companyLocations: z.array(z.string()).optional(),
   hiringSalaryMin: z.preprocess(val => {
-    const parsed = parseInt(z.string().parse(val), 10);
+    const parsedVal = typeof val === 'string' ? val.replace(/[^0-9]/g, '') : val; // Remove non-numeric chars
+    const parsed = parseInt(z.string().parse(parsedVal), 10);
     return isNaN(parsed) ? undefined : parsed;
   }, z.number().positive().optional()),
   hiringSalaryMax: z.preprocess(val => {
-    const parsed = parseInt(z.string().parse(val), 10);
+    const parsedVal = typeof val === 'string' ? val.replace(/[^0-9]/g, '') : val; // Remove non-numeric chars
+    const parsed = parseInt(z.string().parse(parsedVal), 10);
     return isNaN(parsed) ? undefined : parsed;
   }, z.number().positive().optional()),
   hiringSalaryCurrency: z.string().optional(),
 });
 
-// Example type for form values, can be refined
 type PreferencesFormValues = z.infer<typeof individualPreferencesSchema> | z.infer<typeof companyPreferencesSchema>;
 
 
@@ -98,9 +102,7 @@ const ToggleButton: React.FC<ToggleButtonProps> = ({ value, selectedValue, onSel
   </button>
 )
 
-// Define the component that contains the actual page logic, including useSearchParams
 function PreferencesContent() {
-  // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY CONDITIONAL LOGIC OR EARLY RETURNS
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, token, refetchUser, isLoading: isAuthLoading } = useAuth();
@@ -108,108 +110,95 @@ function PreferencesContent() {
 
   // State for company salary UI (controlled inputs) - RHF will still hold the source of truth via register/controller
   const [companySalary, setCompanySalary] = useState({ min: "", max: "", currency: "usd" });
+  // Individual salary state
+  const [individualSalary, setIndividualSalary] = useState({ min: "", max: "", currency: "usd" });
 
-  // Determine userType for schema selection
+
   const finalUserType = user?.user_type || queryUserType || 'individual';
   const currentSchema = finalUserType === 'company' ? companyPreferencesSchema : individualPreferencesSchema;
 
-  // Form setup - MUST be called before any conditional returns
   const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch, setValue } = useForm<PreferencesFormValues>({
     resolver: zodResolver(currentSchema),
     defaultValues: {
+      // Common defaults or type-specific ones can be set here or via useEffect
       jobStatus: "actively-looking",
       desiredRoles: ["Software Engineering"],
       workArrangement: "hybrid",
       experienceLevel: "mid-level",
       salaryExpectationCurrency: "usd",
       careerGoals: [],
-      locations: ["Noida"],
+      locations: ["Noida"], // Default for individual
       hiringStatus: "actively-hiring",
       employmentType: "full-time",
-      roles: ["Software Engineering"],
-      companyLocations: ["Noida"],
+      roles: ["Software Engineering"], // Default for company
+      companyLocations: ["Noida"], // Default for company
       hiringSalaryCurrency: "usd",
     },
   });
 
-  // NOW we can have conditional returns - AFTER all hooks have been called
   if (isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading user data...</div>;
   }
 
   if (!user && !queryUserType) {
-    toast.error("User information not available or user type not specified. Redirecting to login.");
-    if (typeof window !== 'undefined') {
+    // This check should ideally be more robust, perhaps redirecting if queryUserType is also absent
+    // and user context is not available after loading.
+    toast.error("User information not available. Please ensure you are logged in.");
+     if (typeof window !== 'undefined') {
         router.push('/auth/login');
-    }
-    return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>;
+     }
+    return <div className="min-h-screen flex items-center justify-center">Redirecting to login...</div>;
   }
+
 
   const onSubmit: SubmitHandler<PreferencesFormValues> = async (data) => {
     if (!token) {
       toast.error("Authentication token not found. Please log in again.");
       return;
     }
+
     let payload: Partial<PreferencesFormValues> = {};
+    // Construct payload based on finalUserType, ensuring only relevant fields are sent
     if (finalUserType === 'individual') {
-      const { companyLocations, hiringSalaryMax, hiringSalaryMin, hiringSalaryCurrency, ...individualData } = data as any;
       payload = {
-        jobStatus: individualData.jobStatus,
-        desiredRoles: individualData.desiredRoles,
-        workArrangement: individualData.workArrangement,
-        experienceLevel: individualData.experienceLevel,
-        salaryExpectationMin: individualData.salaryExpectationMin,
-        salaryExpectationMax: individualData.salaryExpectationMax,
-        salaryExpectationCurrency: individualData.salaryExpectationCurrency,
-        careerGoals: individualData.careerGoals,
-        locations: individualData.locations,
+        jobStatus: data.jobStatus,
+        desiredRoles: data.desiredRoles,
+        workArrangement: data.workArrangement,
+        experienceLevel: data.experienceLevel,
+        salaryExpectationMin: (data as z.infer<typeof individualPreferencesSchema>).salaryExpectationMin,
+        salaryExpectationMax: (data as z.infer<typeof individualPreferencesSchema>).salaryExpectationMax,
+        salaryExpectationCurrency: (data as z.infer<typeof individualPreferencesSchema>).salaryExpectationCurrency,
+        careerGoals: data.careerGoals,
+        locations: (data as z.infer<typeof individualPreferencesSchema>).locations,
       };
     } else if (finalUserType === 'company') {
-      const { locations, salaryExpectationMin, salaryExpectationMax, salaryExpectationCurrency, careerGoals, jobStatus, desiredRoles, workArrangement, experienceLevel, ...companyData } = data as any;
       payload = {
-        hiringStatus: companyData.hiringStatus,
-        employmentType: companyData.employmentType,
-        roles: companyData.roles,
-        companyLocations: companyData.companyLocations,
-        hiringSalaryMin: companyData.hiringSalaryMin,
-        hiringSalaryMax: companyData.hiringSalaryMax,
-        hiringSalaryCurrency: companyData.hiringSalaryCurrency,
+        hiringStatus: data.hiringStatus,
+        employmentType: data.employmentType,
+        roles: (data as z.infer<typeof companyPreferencesSchema>).roles,
+        companyLocations: (data as z.infer<typeof companyPreferencesSchema>).companyLocations,
+        hiringSalaryMin: (data as z.infer<typeof companyPreferencesSchema>).hiringSalaryMin,
+        hiringSalaryMax: (data as z.infer<typeof companyPreferencesSchema>).hiringSalaryMax,
+        hiringSalaryCurrency: (data as z.infer<typeof companyPreferencesSchema>).hiringSalaryCurrency,
       };
     }
-    Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
     
-    console.log('Preferences payload being sent:', payload);
-    console.log('User type:', finalUserType);
-    console.log('Token available:', !!token);
+    // Remove undefined properties from payload
+    Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
     
     try {
       await updateUserPreferences(payload, token);
       toast.success("Preferences saved successfully!");
-      await refetchUser();
+      await refetchUser(); // Refresh user context data
       if (finalUserType === 'individual') {
         router.push(`/auth/onboarding/culture?type=${finalUserType}`);
       } else {
+        // Assuming company onboarding might skip culture and go to done or another step
         router.push(`/auth/onboarding/done?type=${finalUserType}`);
       }
     } catch (error: any) {
-      console.error('Preferences update error:', error);
-      console.error('Error status:', error.status);
-      console.error('Error data:', error.data);
-      
-      let errorMessage = "Server error while updating preferences.";
-      if (error.status === 400) {
-        errorMessage = "Invalid preferences data. Please check your inputs.";
-      } else if (error.status === 401) {
-        errorMessage = "Authentication failed. Please log in again.";
-      } else if (error.status === 404) {
-        errorMessage = "Preferences endpoint not found. Please contact support.";
-      } else if (error.data?.message) {
-        errorMessage = error.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast.error("Failed to save preferences: " + errorMessage);
+      const errorMessage = error.data?.message || error.message || "Server error while updating preferences.";
+      toast.error(`Failed to save preferences: ${errorMessage}`);
     }
   };
 
@@ -235,7 +224,6 @@ function PreferencesContent() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
           {finalUserType === 'company' ? (
-            // Company Preferences
             <>
               {/* Hiring Status */}
               <div className="space-y-4">
@@ -318,64 +306,29 @@ function PreferencesContent() {
                 {(errors as any).employmentType && <p className="text-red-500 text-xs mt-1">{(errors as any).employmentType.message}</p>}
               </div>
 
-              {/* Salary Range */}
+              {/* Salary Range (Company) */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 mb-2">
                   <DollarSignIcon className="h-5 w-5 text-black" />
-                  <Label htmlFor="salary" className="text-base font-semibold text-brand-text-dark">
+                  <Label className="text-base font-semibold text-brand-text-dark">
                     What's your salary range for these positions?
                   </Label>
                 </div>
-                <p className="text-sm text-brand-text-medium bg-amber-50 p-3 rounded-lg border border-amber-200">
-                  <strong>Note:</strong> This helps us match you with candidates in your budget range
-                </p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="relative">
-                    <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
-                    <Input
-                      id="minSalary"
-                      type="number"
-                      placeholder="Min salary"
-                      {...register("hiringSalaryMin")}
-                      value={companySalary.min} // Controlled by companySalary state
-                      onChange={(e) => {
-                        setCompanySalary(prev => ({ ...prev, min: e.target.value }));
-                        setValue("hiringSalaryMin", e.target.value, { shouldValidate: true }); // Also update RHF
-                      }}
-                      className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
-                    />
-                     {errors.hiringSalaryMin && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryMin.message}</p>}
-                  </div>
-                  <div className="relative">
-                    <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
-                    <Input
-                      id="maxSalary"
-                      type="number"
-                      placeholder="Max salary"
-                      {...register("hiringSalaryMax")}
-                      value={companySalary.max} // Controlled by companySalary state
-                      onChange={(e) => {
-                        setCompanySalary(prev => ({ ...prev, max: e.target.value }));
-                        setValue("hiringSalaryMax", e.target.value, { shouldValidate: true }); // Also update RHF
-                      }}
-                      className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
-                    />
+                    <Input type="number" placeholder="Min salary" {...register("hiringSalaryMin")}
+                           className="bg-brand-bg-input border-brand-border pl-9 focus:border-black" />
+                    {errors.hiringSalaryMin && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryMin.message}</p>}
+                    <Input type="number" placeholder="Max salary" {...register("hiringSalaryMax")}
+                           className="bg-brand-bg-input border-brand-border pl-9 focus:border-black" />
                     {errors.hiringSalaryMax && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryMax.message}</p>}
-                  </div>
                 </div>
                 <Controller
                   name="hiringSalaryCurrency"
                   control={control}
                   defaultValue="usd"
                   render={({ field }) => (
-                    <Select
-                      value={companySalary.currency} // Controlled by companySalary state
-                      onValueChange={(currency) => {
-                        setCompanySalary(prev => ({ ...prev, currency }));
-                        field.onChange(currency); // Update RHF
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -383,8 +336,6 @@ function PreferencesContent() {
                         <SelectItem value="eur">EUR (€)</SelectItem>
                         <SelectItem value="gbp">GBP (£)</SelectItem>
                         <SelectItem value="inr">INR (₹)</SelectItem>
-                        <SelectItem value="cad">CAD ($)</SelectItem>
-                        <SelectItem value="aud">AUD ($)</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -392,62 +343,31 @@ function PreferencesContent() {
                 {errors.hiringSalaryCurrency && <p className="text-red-500 text-xs mt-1">{errors.hiringSalaryCurrency.message}</p>}
               </div>
 
-              {/* Roles Hiring For */}
+              {/* Roles Hiring For (Company) */}
               <div className="space-y-4">
-                <Label className="block text-base font-semibold text-brand-text-dark">
-                  Which roles are you hiring for?
-                </Label>
-                <p className="text-sm text-brand-text-medium">
-                  Select all roles you're currently hiring for. We'll match you with relevant candidates.
-                </p>
+                <Label className="block text-base font-semibold text-brand-text-dark">Which roles are you hiring for?</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(watch('roles') || []).map((role: string) => (
-                    <span
-                      key={role}
-                      className="inline-flex items-center bg-black text-white text-sm font-medium px-4 py-2 rounded-full"
-                    >
+                    <span key={role} className="inline-flex items-center bg-black text-white text-sm font-medium px-4 py-2 rounded-full">
                       {role}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentRoles = watch('roles') || [];
-                          setValue('roles', currentRoles.filter((item: string) => item !== role), { shouldValidate: true });
-                        }}
-                        className="ml-2 text-white hover:bg-gray-900 rounded-full p-0.5 transition-colors"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <button type="button" onClick={() => setValue('roles', (watch('roles') || []).filter((item: string) => item !== role), { shouldValidate: true })}
+                        className="ml-2 text-white hover:bg-gray-700 rounded-full p-0.5"><XIcon className="h-3.5 w-3.5" /></button>
                     </span>
                   ))}
                 </div>
-                <Controller
-                  name="roles"
-                  control={control}
+                <Controller name="roles" control={control}
                   render={({ field }) => (
-                    <Select
-                      onValueChange={(newRole) => {
-                        const currentRoles = field.value || [];
-                        if (newRole && !currentRoles.includes(newRole)) {
-                          field.onChange([...currentRoles, newRole]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                        <SelectValue placeholder="Add a role you're hiring for" />
+                    <Select onValueChange={(newRole) => {
+                      const current = field.value || [];
+                      if (newRole && !current.includes(newRole)) field.onChange([...current, newRole]);
+                    }}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black">
+                        <SelectValue placeholder="Add a role" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Software Engineering">Software Engineering</SelectItem>
                         <SelectItem value="Product Management">Product Management</SelectItem>
-                        <SelectItem value="Design & UX">Design & UX</SelectItem>
-                        <SelectItem value="Data Science">Data Science & Analytics</SelectItem>
-                        <SelectItem value="Marketing">Marketing & Growth</SelectItem>
-                        <SelectItem value="Sales">Sales & Business Development</SelectItem>
-                        <SelectItem value="Operations">Operations & Strategy</SelectItem>
-                        <SelectItem value="Finance">Finance & Accounting</SelectItem>
-                        <SelectItem value="Human Resources">Human Resources</SelectItem>
-                        <SelectItem value="Customer Success">Customer Success</SelectItem>
-                        <SelectItem value="DevOps">DevOps & Infrastructure</SelectItem>
-                        <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
+                        {/* Add more roles */}
                       </SelectContent>
                     </Select>
                   )}
@@ -457,57 +377,29 @@ function PreferencesContent() {
 
               {/* Work Locations (Company) */}
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <MapPinIcon className="h-5 w-5 text-black" />
-                  <Label className="block text-base font-semibold text-brand-text-dark">
-                    Where are these positions located?
-                  </Label>
-                </div>
-                <p className="text-sm text-brand-text-medium">
-                  Add all locations where you're hiring. Include remote if you offer it.
-                </p>
+                <Label className="block text-base font-semibold text-brand-text-dark">Where are these positions located?</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(watch('companyLocations') || []).map((location: string) => (
-                    <span
-                      key={location}
-                      className="inline-flex items-center bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-full"
-                    >
+                    <span key={location} className="inline-flex items-center bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-full">
                       {location}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentCompanyLocations = watch('companyLocations') || [];
-                          setValue('companyLocations', currentCompanyLocations.filter((item:string) => item !== location), { shouldValidate: true });
-                        }}
-                        className="ml-2 text-gray-600 hover:bg-gray-200 rounded-full p-0.5 transition-colors"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <button type="button" onClick={() => setValue('companyLocations', (watch('companyLocations') || []).filter((item: string) => item !== location), { shouldValidate: true })}
+                        className="ml-2 text-gray-600 hover:bg-gray-400 rounded-full p-0.5"><XIcon className="h-3.5 w-3.5" /></button>
                     </span>
                   ))}
                 </div>
-                <Controller
-                  name="companyLocations"
-                  control={control}
+                <Controller name="companyLocations" control={control}
                   render={({ field }) => (
-                    <Select
-                      onValueChange={(newLocation) => {
-                        const currentCompanyLocations = field.value || [];
-                        if (newLocation && !currentCompanyLocations.includes(newLocation)) {
-                          field.onChange([...currentCompanyLocations, newLocation]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
+                    <Select onValueChange={(newLocation) => {
+                      const current = field.value || [];
+                      if (newLocation && !current.includes(newLocation)) field.onChange([...current, newLocation]);
+                    }}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black">
                         <SelectValue placeholder="Add a location" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Remote">🌍 Remote</SelectItem>
-                        <SelectItem value="Hybrid">🏢 Hybrid</SelectItem>
-                        <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
-                        <SelectItem value="New York, NY">New York, NY</SelectItem>
-                        {/* ... other locations ... */}
+                        <SelectItem value="Remote">Remote</SelectItem>
                         <SelectItem value="Noida, India">Noida, India</SelectItem>
+                        {/* Add more locations */}
                       </SelectContent>
                     </Select>
                   )}
@@ -520,42 +412,20 @@ function PreferencesContent() {
             <>
               {/* Job Search Status */}
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <UserIcon className="h-5 w-5 text-black" />
-                  <Label className="text-base font-semibold text-brand-text-dark">
-                    What's your current job search status? <span className="text-brand-red">*</span>
-                  </Label>
-                </div>
-                <Controller
-                  name="jobStatus"
-                  control={control}
+                <Label className="text-base font-semibold text-brand-text-dark">What's your current job search status?</Label>
+                <Controller name="jobStatus" control={control}
                   render={({ field }) => (
                     <div className="grid grid-cols-1 gap-4">
-                      {[
+                       {[
                         { value: "actively-looking", label: "Actively Looking", desc: "I'm actively applying and interviewing for new opportunities." },
                         { value: "open-to-opportunities", label: "Open to Opportunities", desc: "I'm not actively searching but open to the right opportunity." },
                         { value: "exploring", label: "Just Exploring", desc: "I'm researching and exploring what's available in the market." },
                       ].map((item) => (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => field.onChange(item.value)}
-                          className={cn(
-                            "p-5 border rounded-xl text-left transition-all duration-200",
-                            field.value === item.value
-                              ? "border-black ring-2 ring-black/20 bg-gray-50 shadow-md"
-                              : "border-brand-border hover:border-gray-400 bg-white hover:shadow-sm",
-                          )}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <span className="font-semibold text-brand-text-dark block mb-1">{item.label}</span>
-                              <p className="text-sm text-brand-text-medium leading-relaxed">{item.desc}</p>
-                            </div>
-                            {field.value === item.value && (
-                              <CheckIcon className="w-5 h-5 text-black flex-shrink-0 mt-0.5" />
-                            )}
-                          </div>
+                        <button key={item.value} type="button" onClick={() => field.onChange(item.value)}
+                          className={cn("p-5 border rounded-xl text-left", field.value === item.value ? "border-black ring-2" : "border-brand-border")}>
+                          <span className="font-semibold block">{item.label}</span>
+                          <p className="text-sm text-brand-text-medium">{item.desc}</p>
+                           {field.value === item.value && <CheckIcon className="w-5 h-5 text-black float-right" />}
                         </button>
                       ))}
                     </div>
@@ -566,52 +436,26 @@ function PreferencesContent() {
 
               {/* Desired Roles (Individual) */}
               <div className="space-y-4">
-                <Label className="block text-base font-semibold text-brand-text-dark">
-                  What type of roles are you interested in? <span className="text-brand-red">*</span>
-                </Label>
-                <p className="text-sm text-brand-text-medium">
-                  Select all the roles you'd be interested in applying for.
-                </p>
+                <Label className="block text-base font-semibold">What type of roles are you interested in?</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(watch('desiredRoles') || []).map((role: string) => (
-                    <span
-                      key={role}
-                      className="inline-flex items-center bg-black text-white text-sm font-medium px-4 py-2 rounded-full"
-                    >
+                    <span key={role} className="inline-flex items-center bg-black text-white text-sm font-medium px-3 py-1 rounded-full">
                       {role}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentDesiredRoles = watch('desiredRoles') || [];
-                          setValue('desiredRoles', currentDesiredRoles.filter((item: string) => item !== role), { shouldValidate: true });
-                        }}
-                        className="ml-2 text-white hover:bg-gray-900 rounded-full p-0.5 transition-colors"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <button type="button" onClick={() => setValue('desiredRoles', (watch('desiredRoles') || []).filter(item => item !== role))}
+                        className="ml-2 text-white hover:bg-gray-700 rounded-full p-0.5"><XIcon className="h-3 w-3" /></button>
                     </span>
                   ))}
                 </div>
-                <Controller
-                  name="desiredRoles"
-                  control={control}
+                <Controller name="desiredRoles" control={control}
                   render={({ field }) => (
-                    <Select
-                      onValueChange={(newRole) => {
-                        const currentDesiredRoles = field.value || [];
-                        if (newRole && !currentDesiredRoles.includes(newRole)) {
-                          field.onChange([...currentDesiredRoles, newRole]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                        <SelectValue placeholder="Add a role you're interested in" />
-                      </SelectTrigger>
+                    <Select onValueChange={(newRole) => {
+                      const current = field.value || [];
+                      if (newRole && !current.includes(newRole)) field.onChange([...current, newRole]);
+                    }}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border"><SelectValue placeholder="Add a role" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Software Engineering">Software Engineering</SelectItem>
-                        <SelectItem value="Frontend Development">Frontend Development</SelectItem>
-                        {/* Add other role options here */}
-                        <SelectItem value="Quality Assurance">Quality Assurance</SelectItem>
+                        {/* Add more roles */}
                       </SelectContent>
                     </Select>
                   )}
@@ -621,28 +465,12 @@ function PreferencesContent() {
 
               {/* Work Arrangement (Individual) */}
               <div className="space-y-4">
-                <Label className="block text-base font-semibold text-brand-text-dark">
-                  What's your preferred work arrangement? <span className="text-brand-red">*</span>
-                </Label>
-                <Controller
-                  name="workArrangement"
-                  control={control}
+                <Label className="block text-base font-semibold">What's your preferred work arrangement?</Label>
+                <Controller name="workArrangement" control={control}
                   render={({ field }) => (
                     <div className="flex flex-wrap gap-3">
-                      {[
-                        { id: "remote", label: "Remote Only" },
-                        { id: "hybrid", label: "Hybrid (2-3 days office)" },
-                        { id: "in-office", label: "In-Office" },
-                        { id: "flexible", label: "Flexible/Open to All" }
-                      ].map((arrangement) => (
-                        <ToggleButton
-                          key={arrangement.id}
-                          value={arrangement.id}
-                          selectedValue={field.value || ""}
-                          onSelect={field.onChange}
-                        >
-                          {arrangement.label}
-                        </ToggleButton>
+                      {["Remote Only", "Hybrid", "In-Office", "Flexible"].map(arr => (
+                        <ToggleButton key={arr} value={arr} selectedValue={field.value || ""} onSelect={field.onChange}>{arr}</ToggleButton>
                       ))}
                     </div>
                   )}
@@ -652,30 +480,13 @@ function PreferencesContent() {
 
               {/* Experience Level (Individual) */}
               <div className="space-y-4">
-                <Label className="block text-base font-semibold text-brand-text-dark">
-                  What level of positions are you targeting? <span className="text-brand-red">*</span>
-                </Label>
-                <Controller
-                  name="experienceLevel"
-                  control={control}
+                <Label className="block text-base font-semibold">What level of positions are you targeting?</Label>
+                <Controller name="experienceLevel" control={control}
                   render={({ field }) => (
                     <div className="flex flex-wrap gap-3">
-                      {[
-                        { id: "entry-level", label: "Entry Level (0-2 years)" },
-                        { id: "mid-level", label: "Mid Level (3-5 years)" },
-                        { id: "senior-level", label: "Senior Level (6-8 years)" },
-                        { id: "lead-level", label: "Lead Level (9+ years)" },
-                        { id: "executive", label: "Executive/C-Level" }
-                      ].map((level) => (
-                        <ToggleButton
-                          key={level.id}
-                          value={level.id}
-                          selectedValue={field.value || ""}
-                          onSelect={field.onChange}
-                        >
-                          {level.label}
-                        </ToggleButton>
-                      ))}
+                       {["Entry Level (0-2 years)", "Mid Level (3-5 years)", "Senior Level (6-8 years)"].map(level => (
+                         <ToggleButton key={level} value={level} selectedValue={field.value || ""} onSelect={field.onChange}>{level}</ToggleButton>
+                       ))}
                     </div>
                   )}
                 />
@@ -683,106 +494,41 @@ function PreferencesContent() {
               </div>
 
               {/* Salary Expectations (Individual) */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <DollarSignIcon className="h-5 w-5 text-black" />
-                  <Label className="text-base font-semibold text-brand-text-dark">
-                    What are your salary expectations?
-                  </Label>
-                </div>
-                <p className="text-sm text-brand-text-medium bg-blue-50 p-3 rounded-lg border border-blue-200">
-                  <strong>💡 Tip:</strong> Being transparent about salary helps match you with roles in your desired range
-                </p>
+               <div className="space-y-4">
+                <Label className="text-base font-semibold">What are your salary expectations?</Label>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="relative">
-                    <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
-                    <Input
-                      type="number"
-                      placeholder="Min expected"
-                      {...register("salaryExpectationMin")}
-                      className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
-                    />
+                    <Input type="number" placeholder="Min expected" {...register("salaryExpectationMin")}
+                           className="bg-brand-bg-input border-brand-border pl-9 focus:border-black" />
                     {errors.salaryExpectationMin && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationMin.message}</p>}
-                  </div>
-                  <div className="relative">
-                    <DollarSignIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-light" />
-                    <Input
-                      type="number"
-                      placeholder="Max expected"
-                       {...register("salaryExpectationMax")}
-                      className="bg-brand-bg-input border-brand-border pl-9 focus:border-black focus:ring-2 focus:ring-black/20"
-                    />
+                     <Input type="number" placeholder="Max expected" {...register("salaryExpectationMax")}
+                           className="bg-brand-bg-input border-brand-border pl-9 focus:border-black" />
                     {errors.salaryExpectationMax && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationMax.message}</p>}
-                  </div>
                 </div>
-                <Controller
-                  name="salaryExpectationCurrency"
-                  control={control}
-                  defaultValue="usd"
+                <Controller name="salaryExpectationCurrency" control={control} defaultValue="usd"
                   render={({ field }) => (
-                    <Select value={field.value || "usd"} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="usd">USD ($) - Annual</SelectItem>
-                        <SelectItem value="eur">EUR (€) - Annual</SelectItem>
-                        <SelectItem value="gbp">GBP (£) - Annual</SelectItem>
-                        <SelectItem value="inr">INR (₹) - Annual</SelectItem>
-                        <SelectItem value="cad">CAD ($) - Annual</SelectItem>
-                        <SelectItem value="aud">AUD ($) - Annual</SelectItem>
+                        {/* Add more currencies */}
                       </SelectContent>
                     </Select>
                   )}
                 />
-                 {errors.salaryExpectationCurrency && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationCurrency.message}</p>}
+                {errors.salaryExpectationCurrency && <p className="text-red-500 text-xs mt-1">{errors.salaryExpectationCurrency.message}</p>}
               </div>
 
               {/* Career Goals (Individual) */}
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <TargetIcon className="h-5 w-5 text-black" />
-                  <Label className="block text-base font-semibold text-brand-text-dark">
-                    What are your career goals?
-                  </Label>
-                </div>
-                <p className="text-sm text-brand-text-medium">
-                  Select what matters most to you in your next role.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    "Career Growth",
-                    "Work-Life Balance",
-                    "High Compensation",
-                    "Learning New Technologies",
-                    "Leadership Opportunities",
-                    "Startup Environment",
-                    "Established Company",
-                    "Remote Work",
-                    "Impactful Work",
-                    "Team Collaboration",
-                    "Innovation & Creativity",
-                    "Job Security"
-                  ].map((goal) => {
+                <Label className="block text-base font-semibold">What are your career goals?</Label>
+                 <div className="grid grid-cols-2 gap-3">
+                  {["Career Growth", "Work-Life Balance", "High Compensation", "Learning New Technologies"].map(goal => {
                     const currentGoals = watch('careerGoals') || [];
                     const isSelected = currentGoals.includes(goal);
                     return (
-                      <button
-                        key={goal}
-                        type="button"
-                        onClick={() => {
-                          const updatedGoals = isSelected
-                            ? currentGoals.filter(g => g !== goal)
-                            : [...currentGoals, goal];
-                          setValue('careerGoals', updatedGoals, { shouldValidate: true });
-                        }}
-                        className={cn(
-                          "p-3 text-sm font-medium rounded-lg border transition-all duration-200 text-left",
-                          isSelected
-                            ? "bg-black text-white border-black"
-                            : "bg-white text-brand-text-dark border-brand-border hover:border-gray-400"
-                        )}
-                      >
+                      <button key={goal} type="button"
+                        onClick={() => setValue('careerGoals', isSelected ? currentGoals.filter(g => g !== goal) : [...currentGoals, goal])}
+                        className={cn("p-3 text-sm font-medium rounded-lg border", isSelected ? "bg-black text-white" : "bg-white text-brand-text-dark")}>
                         {goal}
                       </button>
                     );
@@ -793,56 +539,27 @@ function PreferencesContent() {
 
               {/* Preferred Locations (Individual) */}
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <MapPinIcon className="h-5 w-5 text-black" />
-                  <Label className="block text-base font-semibold text-brand-text-dark">
-                    Where are you open to working?
-                  </Label>
-                </div>
-                <p className="text-sm text-brand-text-medium">
-                  Select all locations you're willing to work in or relocate to.
-                </p>
+                <Label className="block text-base font-semibold">Where are you open to working?</Label>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {(watch('locations') || []).map((location: string) => (
-                    <span
-                      key={location}
-                      className="inline-flex items-center bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-full"
-                    >
+                  {(watch('locations') || []).map((location:string) => (
+                    <span key={location} className="inline-flex items-center bg-gray-100 text-gray-800 text-sm px-3 py-1 rounded-full">
                       {location}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentLocations = watch('locations') || [];
-                          setValue('locations', currentLocations.filter((item: string) => item !== location), { shouldValidate: true });
-                        }}
-                        className="ml-2 text-gray-600 hover:bg-gray-200 rounded-full p-0.5 transition-colors"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <button type="button" onClick={() => setValue('locations', (watch('locations')||[]).filter(item => item !== location))}
+                        className="ml-2 text-gray-600 hover:bg-gray-400 rounded-full p-0.5"><XIcon className="h-3 w-3" /></button>
                     </span>
                   ))}
                 </div>
-                 <Controller
-                  name="locations" // For Individual
-                  control={control}
+                <Controller name="locations" control={control}
                   render={({ field }) => (
-                    <Select
-                      onValueChange={(newLocation) => {
-                        const currentLocations = field.value || [];
-                        if (newLocation && !currentLocations.includes(newLocation)) {
-                          field.onChange([...currentLocations, newLocation]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border focus:border-black focus:ring-2 focus:ring-black/20">
-                        <SelectValue placeholder="Add a preferred location" />
-                      </SelectTrigger>
+                    <Select onValueChange={(newLocation) => {
+                      const current = field.value || [];
+                      if (newLocation && !current.includes(newLocation)) field.onChange([...current, newLocation]);
+                    }}>
+                      <SelectTrigger className="w-full bg-brand-bg-input border-brand-border"><SelectValue placeholder="Add a location" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Remote">🌍 Remote (Anywhere)</SelectItem>
-                        <SelectItem value="San Francisco, CA">San Francisco, CA</SelectItem>
-                        <SelectItem value="New York, NY">New York, NY</SelectItem>
-                        {/* Add other location options here */}
+                        <SelectItem value="Remote">Remote (Anywhere)</SelectItem>
                         <SelectItem value="Noida, India">Noida, India</SelectItem>
+                        {/* Add more locations */}
                       </SelectContent>
                     </Select>
                   )}
