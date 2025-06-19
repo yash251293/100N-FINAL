@@ -137,25 +137,25 @@ function SignUpContent() {
           Real roles. Real startups.
         </p>
       </div>
-      <div className="w-full md:w-1/2 flex flex-col justify-center bg-white p-8 sm:p-12 min-h-full">
+      <div className="w-full md:w-1/2 flex flex-col justify-center bg-white p-6 sm:p-8 md:p-12 min-h-full">
         <div className="mb-8 text-center">
           <span className="text-2xl font-black text-brand-text-dark" style={{fontFamily: 'Inter, sans-serif'}}>100</span>
           <span className="text-2xl font-black text-brand-blue ml-1" style={{fontFamily: 'Inter, sans-serif'}}>Networks</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-brand-text-dark mb-6 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Create Account</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-brand-text-dark mb-6 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Create Account</h1>
 
         <div className="flex justify-center space-x-2 sm:space-x-4 mb-6">
           <Button
             onClick={() => { setValue("user_type", "company"); trigger("user_type"); }}
             variant={userType === 'company' ? 'default' : 'outline'}
-            className={`px-4 py-2 sm:px-6 sm:py-2 rounded-lg font-medium ${userType === 'company' ? 'bg-brand-blue text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-2 text-xs sm:text-sm sm:px-4 md:px-6 rounded-lg font-medium ${userType === 'company' ? 'bg-brand-blue text-white' : 'text-gray-600 hover:bg-gray-200'}`}
           >
             For Company
           </Button>
           <Button
             onClick={() => { setValue("user_type", "individual"); trigger("user_type"); }}
             variant={userType === 'individual' ? 'default' : 'outline'}
-            className={`px-4 py-2 sm:px-6 sm:py-2 rounded-lg font-medium ${userType === 'individual' ? 'bg-brand-blue text-white' : 'text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-2 text-xs sm:text-sm sm:px-4 md:px-6 rounded-lg font-medium ${userType === 'individual' ? 'bg-brand-blue text-white' : 'text-gray-600 hover:bg-gray-200'}`}
           >
             For Individual
           </Button>

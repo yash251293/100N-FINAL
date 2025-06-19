@@ -23,7 +23,7 @@ export default function LandingPage() {
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <nav className="flex justify-between items-center">
           <Logo className="font-['Lora'] text-brand-text-darker" />
-          <div className="space-x-4 flex items-center">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <button
               onClick={() => handleUserTypeSelect('company')}
               className={`text-sm font-bold px-6 py-2.5 rounded-xl transition-all duration-200 ${
@@ -50,13 +50,13 @@ export default function LandingPage() {
 
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="py-16 md:py-24 bg-white">
+        <section className="py-12 sm:py-16 md:py-24 bg-white">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-['Lora'] leading-tight mb-6 text-brand-text-dark">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[56px] font-['Lora'] leading-tight mb-6 text-brand-text-dark">
                 Expand Your World: Connect, Collaborate, Succeed with 100 Networks
               </h1>
-              <p className="text-lg text-brand-text-medium mb-8 font-['Abhaya_Libre_Medium']">
+              <p className="text-base sm:text-lg text-brand-text-medium mb-8 font-['Abhaya_Libre_Medium']">
                 100 Networks empowers you to build meaningful professional relationships, discover collaborations, and
                 accelerate your growth. Find your next connection, mentor, or business partner today.
               </p>
@@ -74,16 +74,16 @@ export default function LandingPage() {
                 alt="Hero Illustration"
                 width={580}
                 height={500}
-                className="rounded-lg"
+                className="rounded-lg w-full"
               />
             </div>
           </div>
         </section>
 
         {/* 3 Simple Steps Section */}
-        <section className="py-16 md:py-24 bg-brand-bg-light-gray">
+        <section className="py-12 sm:py-16 md:py-24 bg-brand-bg-light-gray">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl sm:text-4xl font-['Abhaya_Libre_Bold'] text-brand-text-dark text-center mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-['Abhaya_Libre_Bold'] text-brand-text-dark text-center mb-16">
               Building Your Network in 3 Simple Steps
             </h2>
             <div className="grid md:grid-cols-3 gap-8">
@@ -107,7 +107,7 @@ export default function LandingPage() {
                     "Engage in discussions, initiate projects, find mentors, and unlock new opportunities that drive your professional and business success.",
                 },
               ].map((step, index) => (
-                <Card key={index} className="text-center bg-white shadow-md rounded-lg p-6">
+                <Card key={index} className="text-center bg-white shadow-md rounded-lg p-4 sm:p-6">
                   <CardHeader className="p-0 mb-4">
                     <Image
                       src={step.icon || "/icon4.png?width=60&height=60&query=abstract+icon"}
@@ -116,7 +116,7 @@ export default function LandingPage() {
                       height={60}
                       className="mx-auto mb-4"
                     />
-                    <CardTitle className="text-xl font-['Abhaya_Libre_Bold'] text-brand-text-dark">{step.title}</CardTitle>
+                    <CardTitle className="text-lg sm:text-xl font-['Abhaya_Libre_Bold'] text-brand-text-dark">{step.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
                     <p className="text-brand-text-medium text-sm leading-relaxed">{step.description}</p>
@@ -154,7 +154,7 @@ export default function LandingPage() {
             imgLeft: false,
           },
         ].map((feature, index) => (
-          <section key={index} className={`py-16 md:py-24 ${index % 2 === 0 ? "bg-white" : "bg-brand-bg-light-gray"}`}>
+          <section key={index} className={`py-12 sm:py-16 md:py-24 ${index % 2 === 0 ? "bg-white" : "bg-brand-bg-light-gray"}`}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-12 items-center">
               <div className={` ${feature.imgLeft ? "md:order-2" : ""}`}>
                 <Image
@@ -164,7 +164,7 @@ export default function LandingPage() {
                   height={60}
                   className="mb-4"
                 />
-                <h2 className="text-3xl sm:text-[32px] font-['Abhaya_Libre_Bold'] text-brand-text-dark mb-4 leading-snug">
+                <h2 className="text-2xl sm:text-3xl md:text-[32px] font-['Abhaya_Libre_Bold'] text-brand-text-dark mb-4 leading-snug">
                   {feature.title}
                 </h2>
                 <p className="text-base text-brand-text-medium mb-6 leading-relaxed">{feature.description}</p>
@@ -178,7 +178,7 @@ export default function LandingPage() {
                   alt={feature.title}
                   width={500}
                   height={400}
-                  className="rounded-lg"
+                  className="rounded-lg w-full"
                 />
               </div>
             </div>
@@ -186,10 +186,10 @@ export default function LandingPage() {
         ))}
 
         {/* Mission Section */}
-        <section className="py-16 md:py-24 bg-brand-bg-beige">
+        <section className="py-12 sm:py-16 md:py-24 bg-brand-bg-beige">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <Logo className="font-['Lora'] text-brand-text-darker" />
-            <p className="text-lg md:text-xl text-brand-text-medium max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl text-brand-text-medium max-w-3xl mx-auto leading-relaxed">
               Our mission at 100 Networks is to empower individuals at every career stage by providing unparalleled
               access to top-tier internships and rewarding job opportunities.
             </p>
@@ -200,7 +200,7 @@ export default function LandingPage() {
       <footer className="py-8 bg-brand-text-dark text-brand-bg-light-gray">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
           <p>&copy; {new Date().getFullYear()} 100Networks. All rights reserved.</p>
-          <div className="mt-2 space-x-4">
+          <div className="mt-2 space-x-2 sm:space-x-4">
             <Link href="#" className="hover:underline">
               Privacy Policy
             </Link>

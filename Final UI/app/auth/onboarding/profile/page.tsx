@@ -188,7 +188,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-      <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-100 mb-8">
+      <div className="max-w-3xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 mb-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-black to-gray-800 rounded-2xl shadow-lg mb-4">
             {finalUserType === 'company' ? ( // Use finalUserType for rendering
@@ -197,7 +197,7 @@ export default function ProfilePage() {
               <UserIcon className="w-8 h-8 text-white" />
             )}
           </div>
-          <h1 className="text-3xl font-bold text-brand-text-dark mb-3">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-brand-text-dark mb-3">
             {finalUserType === 'company' // Use finalUserType for rendering
               ? 'Tell us about your company'
               : 'Tell us about yourself'
@@ -236,7 +236,7 @@ export default function ProfilePage() {
           <div className="border-t border-brand-border pt-8 space-y-6">
             <div className="flex items-center space-x-2 mb-6">
               <UserIcon className="h-5 w-5 text-black" />
-              <h2 className="text-xl font-semibold text-brand-text-dark">
+              <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">
                 {finalUserType === 'company' ? 'Company Description' : 'Your Bio'} {/* Use finalUserType for rendering */}
               </h2>
             </div>
@@ -261,7 +261,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <BuildingIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Company Information</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Company Information</h2>
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -333,7 +333,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <BriefcaseIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Industry & Focus</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Industry & Focus</h2>
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <LinkIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Company Presence</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Company Presence</h2>
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -421,7 +421,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <UserIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Personal Information</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Personal Information</h2>
                 </div>
 
                 <div className="space-y-6">
@@ -482,7 +482,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <BriefcaseIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Professional Background</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Professional Background</h2>
                 </div>
 
                 <div className="space-y-6">
@@ -564,7 +564,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <GraduationCapIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Education</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Education</h2>
                 </div>
 
                 <div className="space-y-6">
@@ -629,7 +629,7 @@ export default function ProfilePage() {
               <div className="border-t border-brand-border pt-8 space-y-6">
                 <div className="flex items-center space-x-2 mb-6">
                   <LinkIcon className="h-5 w-5 text-black" />
-                  <h2 className="text-xl font-semibold text-brand-text-dark">Online Presence</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-brand-text-dark">Online Presence</h2>
                 </div>
                 <div className="space-y-6">
                   <div>

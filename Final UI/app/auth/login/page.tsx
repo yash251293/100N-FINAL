@@ -81,12 +81,12 @@ export default function LoginPage() {
             Real roles. Real startups.
           </p>
         </div>
-        <div className="w-full md:w-1/2 flex flex-col justify-center bg-white p-8 sm:p-12 min-h-full">
+        <div className="w-full md:w-1/2 flex flex-col justify-center bg-white p-6 sm:p-8 md:p-12 min-h-full">
           <div className="mb-8 text-center">
             <span className="text-2xl font-black text-brand-text-dark" style={{fontFamily: 'Inter, sans-serif'}}>100</span>
             <span className="text-2xl font-black text-brand-blue ml-1" style={{fontFamily: 'Inter, sans-serif'}}>Networks</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-brand-text-dark mb-8 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Login</h1>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-brand-text-dark mb-8 text-center" style={{fontFamily: 'Inter, sans-serif'}}>Login</h1>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>

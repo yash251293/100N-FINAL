@@ -197,7 +197,7 @@ export function OnboardingStepper() {
   const progressPercentage = totalDataSteps > 0 ? (trulyCompletedDataSteps / totalDataSteps) * 100 : 0;
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 mb-12">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 mb-12">
       {/* Progress Bar with Dots */}
       <div className="relative flex items-center justify-between mb-2">
         {/* Progress Line - this is a visual effect and doesn't use progressPercentage directly for filling */}
@@ -221,14 +221,14 @@ export function OnboardingStepper() {
                 aria-current={status === "current" ? "step" : undefined}
               >
                 <div className={cn(
-                  "flex items-center justify-center w-7 h-7 rounded-full border-2 transition-all duration-200",
+                  "flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 transition-all duration-200",
                   status === "complete"
                     ? "bg-black border-black text-white"
                     : status === "current"
                       ? "bg-white border-black text-black"
                       : "bg-white border-gray-300 text-gray-400"
                 )}>
-                  {status === "complete" ? <CheckIcon className="w-4 h-4" /> : <span className={cn("font-bold text-base", status === "current" ? "text-black" : "text-gray-400")}>{idx + 1}</span>}
+                  {status === "complete" ? <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4" /> : <span className={cn("font-bold text-sm sm:text-base", status === "current" ? "text-black" : "text-gray-400")}>{idx + 1}</span>}
                 </div>
               </Link>
             </div>
