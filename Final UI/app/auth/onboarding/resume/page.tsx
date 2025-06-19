@@ -74,9 +74,9 @@ function ResumePageContent() {
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md text-center">
-        <h1 className="text-2xl font-bold text-brand-text-dark mb-2">Upload a recent resume or CV</h1>
-        <p className="text-brand-text-medium mb-8">
+      <div className="max-w-2xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-md text-center">
+        <h1 className="text-xl sm:text-2xl font-bold text-brand-text-dark mb-2">Upload a recent resume or CV</h1>
+        <p className="text-brand-text-medium text-sm sm:text-base mb-8">
           Autocomplete your profile in just a few seconds by uploading a resume.
         </p>
 

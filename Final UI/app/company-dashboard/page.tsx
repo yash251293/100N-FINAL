@@ -165,13 +165,13 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="w-[65%] mx-auto py-8">
+    <div className="w-full px-2 sm:px-4 md:w-4/5 lg:w-[70%] mx-auto py-6 sm:py-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
-            <h1 className="text-3xl font-heading text-primary-navy mb-2">Dashboard</h1>
-            <p className="text-lg text-slate-600 font-subheading">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-heading text-primary-navy mb-2">Dashboard</h1>
+            <p className="text-base sm:text-lg text-slate-600 font-subheading">
               Welcome back! Here's what's happening with your recruiting.
             </p>
           </div>
@@ -190,7 +190,7 @@ export default function CompanyDashboard() {
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {metrics.map((metric, index) => (
-          <Card key={index} className="p-6 border border-slate-200 rounded-lg hover:shadow-lg transition-shadow">
+          <Card key={index} className="p-4 sm:p-6 border border-slate-200 rounded-lg hover:shadow-lg transition-shadow">
             <CardContent className="p-0">
               <div className="flex items-center justify-between mb-3">
                 <div className={`p-2 rounded-lg ${metric.isPositive ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -201,7 +201,7 @@ export default function CompanyDashboard() {
                   {metric.change}
                 </div>
               </div>
-              <h3 className="text-2xl font-heading text-slate-900 mb-1">{metric.value}</h3>
+              <h3 className="text-xl sm:text-2xl font-heading text-slate-900 mb-1">{metric.value}</h3>
               <p className="text-sm text-slate-600 font-subheading">{metric.title}</p>
               <p className="text-xs text-slate-500 font-subheading mt-1">{metric.period}</p>
             </CardContent>
@@ -223,9 +223,9 @@ export default function CompanyDashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="space-y-4 p-6 pt-0">
+            <div className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
               {recentApplications.slice(0, 4).map((applicant) => (
-                <div key={applicant.id} className="flex items-center space-x-4 p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
+                <div key={applicant.id} className="flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
                   <div className="w-10 h-10 bg-primary-navy rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-subheading">
                       {applicant.name.split(' ').map(n => n[0]).join('')}
@@ -271,34 +271,34 @@ export default function CompanyDashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="space-y-4 p-6 pt-0">
+            <div className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
               {topJobs.map((job) => (
-                <div key={job.id} className="p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
+                <div key={job.id} className="p-3 sm:p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-subheading text-base text-slate-900">{job.title}</h4>
                     <Badge className="bg-green-50 text-green-600 border-green-200 text-xs font-subheading px-2 py-1">
                       {job.status}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-1">
                         <Users className="h-4 w-4 text-slate-500 mr-1" />
-                        <span className="text-lg font-heading text-slate-900">{job.applicants}</span>
+                        <span className="text-base sm:text-lg font-heading text-slate-900">{job.applicants}</span>
                       </div>
                       <p className="text-xs text-slate-600 font-subheading">Applicants</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-1">
                         <Eye className="h-4 w-4 text-slate-500 mr-1" />
-                        <span className="text-lg font-heading text-slate-900">{job.views}</span>
+                        <span className="text-base sm:text-lg font-heading text-slate-900">{job.views}</span>
                       </div>
                       <p className="text-xs text-slate-600 font-subheading">Views</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center mb-1">
                         <Target className="h-4 w-4 text-slate-500 mr-1" />
-                        <span className="text-lg font-heading text-slate-900">{job.conversion}</span>
+                        <span className="text-base sm:text-lg font-heading text-slate-900">{job.conversion}</span>
                       </div>
                       <p className="text-xs text-slate-600 font-subheading">Conversion</p>
                     </div>

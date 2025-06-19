@@ -41,12 +41,12 @@ export default function FeedPage() {
 
   return (
             <div className="min-h-full">
-      <div className="w-[65%] mx-auto py-4">
+      <div className="w-full px-2 sm:px-4 md:w-4/5 lg:w-[70%] mx-auto py-4">
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
         <div>
-            <h1 className="text-4xl font-heading text-primary-navy mb-2">What's Happening Today?</h1>
-            <p className="text-slate-600 font-subheading text-xl">Follow, share, and grow with your network</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-heading text-primary-navy mb-2">What's Happening Today?</h1>
+            <p className="text-slate-600 font-subheading text-base sm:text-lg md:text-xl">Follow, share, and grow with your network</p>
       </div>
 
           {/* New Post Button */}
@@ -60,11 +60,11 @@ export default function FeedPage() {
           </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] p-0 bg-white rounded-2xl shadow-2xl border-0 [&>button]:!outline-none [&>button]:!ring-0 [&>button]:!shadow-none [&>button]:focus:!outline-none [&>button]:focus:!ring-0 [&>button]:focus:!shadow-none">
-              <DialogHeader className="p-6 pb-4 border-b border-slate-100">
-                <DialogTitle className="text-xl font-heading text-primary-navy">Create a Post</DialogTitle>
+              <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100">
+                <DialogTitle className="text-lg sm:text-xl font-heading text-primary-navy">Create a Post</DialogTitle>
               </DialogHeader>
               
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex space-x-4 mb-4">
                   <Avatar className="w-12 h-12">
                 <AvatarImage src="/placeholder-user.jpg" alt="User" />
@@ -100,8 +100,8 @@ export default function FeedPage() {
                 )}
 
                 {/* Post Options */}
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:items-center sm:justify-between pt-4 border-t border-slate-100">
+                  <div className="flex items-center space-x-2 sm:space-x-4">
                       <input
                         type="file"
                         accept="image/*"
@@ -178,7 +178,7 @@ export default function FeedPage() {
         <div className="space-y-6">
           {/* Featured Post */}
           <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-200 rounded-2xl bg-white">
-            <CardContent className="p-8">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex justify-between items-start mb-6">
             <div className="flex space-x-4">
                   <Avatar className="w-16 h-16">
@@ -186,8 +186,8 @@ export default function FeedPage() {
                     <AvatarFallback className="bg-[#0056B3]/10 text-[#0056B3] font-medium text-lg">CL</AvatarFallback>
               </Avatar>
               <div>
-                    <div className="font-heading text-xl text-primary-navy">Carl Livingston</div>
-                    <div className="text-base text-slate-500 font-subheading">Computer Science · Stanford University · 2024</div>
+                    <div className="font-heading text-lg sm:text-xl text-primary-navy">Carl Livingston</div>
+                    <div className="text-sm sm:text-base text-slate-500 font-subheading">Computer Science · Stanford University · 2024</div>
                     <div className="text-sm text-slate-400 mt-1">2 hours ago</div>
                   </div>
                 </div>
@@ -197,7 +197,7 @@ export default function FeedPage() {
               </div>
 
               <div className="mb-6">
-                <p className="text-slate-700 font-subheading leading-relaxed text-base">
+                <p className="text-slate-700 font-subheading leading-relaxed text-sm sm:text-base">
                   Just finished my final interview round at Google! 🎉 The preparation was intense, but these interview tips from the 100 Networks community were game-changers. 
                   
                   Key takeaways that helped me:
@@ -212,15 +212,15 @@ export default function FeedPage() {
               <div className="rounded-xl overflow-hidden border border-slate-100 mb-6">
                 <img src="/campus-walk.png" alt="Students on campus" className="w-full h-52 object-cover" />
                 <div className="p-6 bg-slate-50">
-                  <h3 className="font-heading text-lg text-primary-navy mb-2">5 Interview Tips That Actually Work</h3>
-                  <p className="text-base text-slate-600 font-subheading">Transform your interview game with research-backed strategies...</p>
+                  <h3 className="font-heading text-base sm:text-lg text-primary-navy mb-2">5 Interview Tips That Actually Work</h3>
+                  <p className="text-sm sm:text-base text-slate-600 font-subheading">Transform your interview game with research-backed strategies...</p>
                   <p className="text-sm text-[#0056B3] mt-2 font-medium">100networks.com</p>
           </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-6 text-slate-500">
-                  <span className="text-base font-subheading">127 likes • 23 comments</span>
+                  <span className="text-sm sm:text-base font-subheading">127 likes • 23 comments</span>
             </div>
               <div className="flex space-x-2">
                   <Button variant="ghost" size="sm" className="text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-full h-10 w-10">
@@ -239,7 +239,7 @@ export default function FeedPage() {
 
           {/* Regular Post */}
           <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-200 rounded-2xl bg-white">
-            <CardContent className="p-8">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex justify-between items-start mb-6">
             <div className="flex space-x-4">
                   <Avatar className="w-16 h-16">
@@ -247,8 +247,8 @@ export default function FeedPage() {
                     <AvatarFallback className="bg-[#0056B3]/10 text-[#0056B3] font-medium text-lg">IA</AvatarFallback>
               </Avatar>
               <div>
-                    <div className="font-heading text-xl text-primary-navy">Ian Arruda, MPM, CAPM</div>
-                    <div className="text-base text-slate-500 font-subheading">Arizona State University · Project Management</div>
+                    <div className="font-heading text-lg sm:text-xl text-primary-navy">Ian Arruda, MPM, CAPM</div>
+                    <div className="text-sm sm:text-base text-slate-500 font-subheading">Arizona State University · Project Management</div>
                     <div className="text-sm text-slate-400 mt-1">1 day ago</div>
               </div>
             </div>
@@ -258,7 +258,7 @@ export default function FeedPage() {
             </div>
 
               <div className="mb-6">
-                <p className="text-slate-700 font-subheading leading-relaxed text-base">
+                <p className="text-slate-700 font-subheading leading-relaxed text-sm sm:text-base">
                   🎓 I finally did it! After two years of balancing work, studies, and life, I've earned my Master of Project Management degree from Arizona State University.
                   
                   This journey taught me that persistence pays off. Thank you to everyone who supported me along the way – mentors, classmates, and the incredible 100 Networks community! 
@@ -269,7 +269,7 @@ export default function FeedPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-6 text-slate-500">
-                  <span className="text-base font-subheading">89 likes • 12 comments</span>
+                  <span className="text-sm sm:text-base font-subheading">89 likes • 12 comments</span>
           </div>
               <div className="flex space-x-2">
                   <Button variant="ghost" size="sm" className="text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-full h-10 w-10">
@@ -294,8 +294,8 @@ export default function FeedPage() {
                   <span className="text-3xl">✨</span>
             </div>
             <div className="flex-1">
-                  <h3 className="font-heading text-2xl mb-3">Welcome to the Community Feed!</h3>
-                  <p className="text-[#0056B3]/30 font-subheading leading-relaxed mb-6 text-lg">
+                  <h3 className="font-heading text-xl sm:text-2xl mb-3">Welcome to the Community Feed!</h3>
+                  <p className="text-[#0056B3]/30 font-subheading leading-relaxed mb-6 text-base sm:text-lg">
                     Follow thousands of students and professionals. Share your journey, get advice, and discover opportunities that align with your goals.
                   </p>
                   <Button 

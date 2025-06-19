@@ -174,23 +174,23 @@ function VerifyEmailPageContent() {
   return (
     <div className="min-h-screen bg-brand-bg-light-gray py-8">
       <OnboardingStepper />
-      <div className="max-w-xl mx-auto bg-white p-8 rounded-lg shadow-md text-center">
+      <div className="max-w-xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-md text-center">
         <div className="flex justify-center mb-6">
           <button
-            className={`flex items-center px-4 py-2 rounded-l-lg border border-gray-200 font-medium text-base ${method === 'email' ? 'bg-black text-white' : 'bg-white text-black'}`}
+            className={`flex items-center px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-l-lg border border-gray-200 font-medium ${method === 'email' ? 'bg-black text-white' : 'bg-white text-black'}`}
             onClick={() => { setMethod('email'); setOtpSent(false); setVerified(false); setOtp(''); }}
           >
             <MailCheck className="w-5 h-5 mr-2" /> Email
           </button>
           <button
-            className={`flex items-center px-4 py-2 rounded-r-lg border-t border-b border-r border-gray-200 font-medium text-base ${method === 'phone' ? 'bg-black text-white' : 'bg-white text-black'}`}
+            className={`flex items-center px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-r-lg border-t border-b border-r border-gray-200 font-medium ${method === 'phone' ? 'bg-black text-white' : 'bg-white text-black'}`}
             onClick={() => { setMethod('phone'); setOtpSent(false); setVerified(false); setOtp(''); }}
           >
             <Smartphone className="w-5 h-5 mr-2" /> Phone
           </button>
         </div>
-        <h1 className="text-2xl font-bold text-brand-text-dark mb-4">Verify Your {method === 'email' ? 'Email' : 'Phone Number'}</h1>
-        <p className="text-brand-text-medium mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-brand-text-dark mb-4">Verify Your {method === 'email' ? 'Email' : 'Phone Number'}</h1>
+        <p className="text-brand-text-medium text-sm sm:text-base mb-6">
           Enter your {method === 'email' ? 'email address' : 'phone number'} to receive a one-time password (OTP).
         </p>
         <form className="space-y-6" onSubmit={handleSendOtp}>
