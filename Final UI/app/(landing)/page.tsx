@@ -23,7 +23,7 @@ export default function LandingPage() {
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <nav className="flex justify-between items-center">
           <Logo className="font-['Lora'] text-brand-text-darker" />
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex flex-col space-y-2 items-end sm:flex-row sm:space-y-0 sm:space-x-2 sm:items-center">
             <button
               onClick={() => handleUserTypeSelect('company')}
               className={`text-sm font-bold px-6 py-2.5 rounded-xl transition-all duration-200 ${
