@@ -47,3 +47,6 @@ Final UI/out/
 Final UI/node_modules/ # If node_modules is specific to Final UI and not at the root
 # Accidental command file
 udo -u postgres psql
+# Exclude other UI/test folders
+++Final UI/
+test-final-ui/
